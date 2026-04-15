@@ -1,0 +1,2452 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Anura AI — Sistema de Identificación de Ranas</title>
+  <meta name="description" content="Sistema de visión por computadora basado en Deep Learning para identificación taxonómica y análisis anatómico de ranas del orden Anura." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    /* ─── TOKENS ─────────────────────────────────────── */
+    :root {
+      --g0: #0a1a0e;
+      --g1: #0f2318;
+      --g2: #1a3c25;
+      --g3: #2d6a4f;
+      --g4: #40916c;
+      --g5: #52b788;
+      --g6: #74c69d;
+      --g7: #95d5b2;
+      --g8: #b7e4c7;
+      --g9: #d8f3dc;
+      --ga: #f0faf2;
+
+      --accent: #52b788;
+      --accent-glow: rgba(82,183,136,0.25);
+      --teal: #38b2ac;
+      --gold: #d4a017;
+      --amber: #e2a613;
+
+      --text-1: #f0faf2;
+      --text-2: #b7e4c7;
+      --text-3: #74c69d;
+      --text-muted: #40916c;
+
+      --surface-0: #0a1a0e;
+      --surface-1: #0e2214;
+      --surface-2: #12291a;
+      --surface-3: #162e1e;
+
+      --border: rgba(82,183,136,0.18);
+      --border-light: rgba(82,183,136,0.08);
+
+      --radius-sm: 8px;
+      --radius-md: 14px;
+      --radius-lg: 22px;
+      --radius-xl: 32px;
+
+      --shadow-glow: 0 0 40px rgba(82,183,136,0.12);
+      --shadow-card: 0 4px 30px rgba(0,0,0,0.4), 0 1px 8px rgba(0,0,0,0.3);
+      --shadow-card-hover: 0 12px 50px rgba(0,0,0,0.5), 0 0 30px rgba(82,183,136,0.15);
+    }
+
+    /* ─── RESET ──────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--surface-0);
+      color: var(--text-1);
+      min-height: 100vh;
+      overflow-x: hidden;
+      line-height: 1.6;
+    }
+
+    /* ─── GRID NOISE BACKGROUND ──────────────────────── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        radial-gradient(ellipse 80% 50% at 20% 0%, rgba(64,145,108,0.18) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 80% 100%, rgba(82,183,136,0.10) 0%, transparent 60%),
+        url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%2340916c' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ─── NAV ────────────────────────────────────────── */
+    nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      padding: 0 40px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(10,26,14,0.75);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      transition: background 0.3s;
+    }
+
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700;
+      font-size: 1.1rem;
+      color: var(--text-1);
+      text-decoration: none;
+    }
+
+    .nav-logo .frog-icon {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, var(--g4), var(--g6));
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      box-shadow: 0 0 12px var(--accent-glow);
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 8px;
+      list-style: none;
+    }
+
+    .nav-links a {
+      text-decoration: none;
+      color: var(--text-2);
+      font-size: 0.82rem;
+      font-weight: 500;
+      padding: 6px 14px;
+      border-radius: 6px;
+      transition: all 0.2s;
+      letter-spacing: 0.01em;
+    }
+
+    .nav-links a:hover {
+      background: rgba(82,183,136,0.12);
+      color: var(--text-1);
+    }
+
+    @media (max-width: 768px) {
+      .nav-links { display: none; }
+    }
+
+    /* ─── HERO ───────────────────────────────────────── */
+    #hero {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 130px 40px 80px;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(82,183,136,0.10);
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      padding: 6px 18px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--accent);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 30px;
+      animation: fadeUp 0.6s ease both;
+    }
+
+    .hero-badge .dot {
+      width: 6px;
+      height: 6px;
+      background: var(--accent);
+      border-radius: 50%;
+      animation: ping 1.5s ease infinite;
+    }
+
+    @keyframes ping {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(1.4); }
+    }
+
+    h1 {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: clamp(2.8rem, 8vw, 5.5rem);
+      font-weight: 700;
+      line-height: 1.05;
+      letter-spacing: -0.03em;
+      margin-bottom: 10px;
+      animation: fadeUp 0.6s 0.1s ease both;
+    }
+
+    h1 .brand-accent {
+      background: linear-gradient(135deg, var(--g5) 0%, var(--g7) 50%, var(--teal) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-subtitle {
+      font-size: clamp(1rem, 2.5vw, 1.2rem);
+      color: var(--text-2);
+      max-width: 620px;
+      margin: 16px auto 36px;
+      line-height: 1.7;
+      animation: fadeUp 0.6s 0.2s ease both;
+    }
+
+    .hero-tags {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 40px;
+      animation: fadeUp 0.6s 0.3s ease both;
+    }
+
+    .tag {
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      padding: 5px 14px;
+      border-radius: 100px;
+      border: 1px solid var(--border);
+      color: var(--text-3);
+      background: rgba(82,183,136,0.06);
+      transition: all 0.2s;
+    }
+
+    .tag:hover {
+      background: rgba(82,183,136,0.15);
+      color: var(--text-1);
+      border-color: var(--border);
+      transform: translateY(-1px);
+    }
+
+    .hero-cta {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      justify-content: center;
+      animation: fadeUp 0.6s 0.4s ease both;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 13px 28px;
+      border-radius: var(--radius-sm);
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.25s;
+      cursor: pointer;
+      border: none;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--g4), var(--g5));
+      color: var(--g0);
+      box-shadow: 0 4px 20px rgba(82,183,136,0.3);
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(82,183,136,0.45);
+      filter: brightness(1.08);
+    }
+
+    .btn-secondary {
+      background: transparent;
+      color: var(--text-1);
+      border: 1.5px solid var(--border);
+    }
+    .btn-secondary:hover {
+      background: rgba(82,183,136,0.08);
+      border-color: var(--accent);
+      transform: translateY(-2px);
+    }
+
+    /* ─── STATS BAR ──────────────────────────────────── */
+    .stats-bar {
+      position: relative;
+      z-index: 1;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 0 40px 80px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+
+    .stat-item {
+      background: var(--surface-1);
+      padding: 28px 24px;
+      text-align: center;
+      transition: background 0.2s;
+    }
+
+    .stat-item:hover { background: var(--surface-2); }
+
+    .stat-number {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--accent);
+      display: block;
+      line-height: 1;
+    }
+
+    .stat-label {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      font-weight: 500;
+      margin-top: 6px;
+      letter-spacing: 0.04em;
+    }
+
+    /* ─── SECTIONS ───────────────────────────────────── */
+    section {
+      position: relative;
+      z-index: 1;
+    }
+
+    .container {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 90px 40px;
+    }
+
+    .section-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 12px;
+    }
+
+    .section-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: clamp(1.8rem, 4vw, 2.8rem);
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      line-height: 1.2;
+      margin-bottom: 16px;
+      color: var(--text-1);
+    }
+
+    .section-desc {
+      font-size: 1.05rem;
+      color: var(--text-2);
+      max-width: 640px;
+      line-height: 1.7;
+      margin-bottom: 56px;
+    }
+
+    /* ─── PIPELINE ───────────────────────────────────── */
+    .pipeline-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+    }
+
+    .pipeline-input {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 18px 28px;
+      width: 100%;
+      max-width: 520px;
+    }
+
+    .pipeline-input-icon {
+      width: 44px;
+      height: 44px;
+      background: rgba(82,183,136,0.12);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      flex-shrink: 0;
+    }
+
+    .pipeline-input-text h4 {
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: var(--text-1);
+    }
+
+    .pipeline-input-text p {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .pipeline-arrow {
+      width: 2px;
+      height: 40px;
+      background: linear-gradient(to bottom, var(--border), var(--accent));
+      position: relative;
+      margin: 0;
+    }
+
+    .pipeline-arrow::after {
+      content: '▼';
+      position: absolute;
+      bottom: -10px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: var(--accent);
+      font-size: 10px;
+    }
+
+    .pipeline-models {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+      width: 100%;
+      max-width: 960px;
+    }
+
+    .pipeline-model {
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 28px;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s;
+      cursor: default;
+    }
+
+    .pipeline-model::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+    }
+
+    .pipeline-model.m1::before { background: linear-gradient(90deg, var(--g4), var(--g6)); }
+    .pipeline-model.m2::before { background: linear-gradient(90deg, var(--teal), var(--g5)); }
+    .pipeline-model.m3::before { background: linear-gradient(90deg, var(--g5), var(--amber)); }
+
+    .pipeline-model:hover {
+      transform: translateY(-4px);
+      border-color: rgba(82,183,136,0.35);
+      box-shadow: var(--shadow-card-hover);
+    }
+
+    .model-num {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      color: var(--accent);
+      font-weight: 500;
+      margin-bottom: 14px;
+      letter-spacing: 0.08em;
+    }
+
+    .model-name {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--text-1);
+      margin-bottom: 8px;
+    }
+
+    .model-desc {
+      font-size: 0.85rem;
+      color: var(--text-2);
+      line-height: 1.6;
+      margin-bottom: 18px;
+    }
+
+    .model-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .model-tag {
+      font-size: 0.68rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      padding: 3px 10px;
+      border-radius: 100px;
+      background: rgba(82,183,136,0.08);
+      border: 1px solid var(--border-light);
+      color: var(--text-3);
+    }
+
+    .pipeline-output {
+      margin-top: 24px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+      width: 100%;
+      max-width: 960px;
+    }
+
+    .output-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--surface-2);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-sm);
+      padding: 14px 18px;
+      transition: all 0.2s;
+    }
+
+    .output-item:hover {
+      border-color: var(--border);
+      background: var(--surface-3);
+    }
+
+    .output-icon {
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+
+    .output-text { font-size: 0.82rem; color: var(--text-2); font-weight: 500; }
+
+    /* ─── USE CASE DIAGRAM SECTION ───────────────────── */
+    #use-case {
+      background: var(--surface-1);
+    }
+
+    .uc-diagram-container {
+      width: 100%;
+      overflow-x: auto;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+      background: var(--surface-0);
+      box-shadow: var(--shadow-card);
+    }
+
+    .uc-diagram-container svg {
+      display: block;
+      min-width: 900px;
+    }
+
+    /* ─── CARDS GRID ─────────────────────────────────── */
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+    }
+
+    .card {
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 30px;
+      transition: all 0.3s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(82,183,136,0.35);
+      box-shadow: var(--shadow-card-hover);
+    }
+
+    .card-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      margin-bottom: 18px;
+      background: rgba(82,183,136,0.1);
+      border: 1px solid var(--border-light);
+    }
+
+    .card h3 {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text-1);
+      margin-bottom: 10px;
+    }
+
+    .card p {
+      font-size: 0.88rem;
+      color: var(--text-2);
+      line-height: 1.65;
+    }
+
+    /* ─── TABLE ──────────────────────────────────────── */
+    .table-wrapper {
+      overflow-x: auto;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+    }
+
+    thead {
+      background: var(--surface-2);
+    }
+
+    th {
+      padding: 14px 20px;
+      text-align: left;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent);
+      border-bottom: 1px solid var(--border);
+    }
+
+    td {
+      padding: 14px 20px;
+      color: var(--text-2);
+      border-bottom: 1px solid var(--border-light);
+      vertical-align: top;
+    }
+
+    tr:last-child td { border-bottom: none; }
+
+    tbody tr { background: var(--surface-1); transition: background 0.15s; }
+    tbody tr:nth-child(even) { background: var(--surface-0); }
+    tbody tr:hover { background: var(--surface-2); }
+
+    td:first-child {
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--accent);
+      font-weight: 500;
+    }
+
+    /* ─── FILE TREE ──────────────────────────────────── */
+    .code-block {
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 30px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.825rem;
+      line-height: 1.8;
+      overflow-x: auto;
+    }
+
+    .code-block .tree-folder { color: var(--accent); font-weight: 600; }
+    .code-block .tree-file { color: var(--text-2); }
+    .code-block .tree-comment { color: var(--text-muted); font-style: italic; }
+
+    /* ─── DECISIONS ──────────────────────────────────── */
+    .decisions-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+    }
+
+    .decision-item {
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 18px 20px;
+      transition: all 0.2s;
+    }
+
+    .decision-item:hover {
+      border-color: rgba(82,183,136,0.35);
+      background: var(--surface-2);
+    }
+
+    .decision-check {
+      width: 22px;
+      height: 22px;
+      background: rgba(82,183,136,0.15);
+      border: 1px solid var(--accent);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--accent);
+      font-size: 12px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .decision-text h4 {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--text-1);
+      margin-bottom: 4px;
+    }
+
+    .decision-text p {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    /* ─── DIVIDER ────────────────────────────────────── */
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 0;
+    }
+
+    /* ─── FOOTER ─────────────────────────────────────── */
+    footer {
+      position: relative;
+      z-index: 1;
+      background: var(--surface-1);
+      border-top: 1px solid var(--border);
+      padding: 60px 40px;
+      text-align: center;
+    }
+
+    .footer-logo {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text-1);
+      margin-bottom: 12px;
+    }
+
+    .footer-logo span { color: var(--accent); }
+
+    footer p {
+      color: var(--text-muted);
+      font-size: 0.88rem;
+      margin-bottom: 28px;
+    }
+
+    .footer-links {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .footer-links a {
+      color: var(--text-2);
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+
+    .footer-links a:hover { color: var(--accent); }
+
+    .footer-copy {
+      margin-top: 36px;
+      font-size: 0.78rem;
+      color: rgba(64,145,108,0.5);
+    }
+
+    /* ─── ANIMATIONS ─────────────────────────────────── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .reveal {
+      opacity: 0;
+      transform: translateY(32px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* ─── SCROLLBAR ──────────────────────────────────── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--surface-0); }
+    ::-webkit-scrollbar-thumb { background: var(--g3); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--g4); }
+
+    /* ─── RESPONSIVE ─────────────────────────────────── */
+    @media (max-width: 768px) {
+      .container { padding: 60px 20px; }
+      nav { padding: 0 20px; }
+      #hero { padding: 120px 20px 60px; }
+      .stats-bar { padding: 0 20px 60px; margin: 0 20px; }
+      footer { padding: 40px 20px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── NAV ────────────────────────────────────────── -->
+  <nav id="navbar">
+    <a href="#hero" class="nav-logo">
+      <div class="frog-icon">🐸</div>
+      Anura AI
+    </a>
+    <ul class="nav-links">
+      <li><a href="#objetivo">Objetivo</a></li>
+      <li><a href="#taxonomia">Taxonomía</a></li>
+      <li><a href="#pipeline">Pipeline</a></li>
+      <li><a href="#use-case">Casos de Uso</a></li>
+      <li><a href="#augmentacion">Augmentación</a></li>
+      <li><a href="#datos">Datos</a></li>
+      <li><a href="#estructura">Estructura</a></li>
+    </ul>
+  </nav>
+
+  <!-- ── HERO ──────────────────────────────────────── -->
+  <header id="hero">
+    <div class="hero-badge">
+      <span class="dot"></span>
+      Deep Learning &amp; Computer Vision · Anfibios
+    </div>
+    <h1>
+      <span class="brand-accent">Anura AI</span><br />Sistema de IA para<br />Identificación de Ranas
+    </h1>
+    <p class="hero-subtitle">
+      Un pipeline modular de tres modelos para clasificación taxonómica completa,
+      segmentación binaria y análisis semántico de partes anatómicas de ranas del orden Anura.
+    </p>
+    <div class="hero-tags">
+      <span class="tag">BioCLIP Fine-tuned</span>
+      <span class="tag">U-Net / ResNet-34</span>
+      <span class="tag">SegFormer mit-b2</span>
+      <span class="tag">Albumentations</span>
+      <span class="tag">FastAPI</span>
+      <span class="tag">PyTorch</span>
+    </div>
+    <div class="hero-cta">
+      <a href="https://huggingface.co/spaces/imageomics/bioclip-2-demo" target="_blank" class="btn btn-primary">
+        ▶ Ver Demo BioCLIP
+      </a>
+      <a href="https://github.com/Mogollo7/Sapito.git" target="_blank" class="btn btn-secondary">
+        ⌥ Repositorio GitHub
+      </a>
+    </div>
+  </header>
+
+  <!-- ── STATS ─────────────────────────────────────── -->
+  <div class="stats-bar reveal">
+    <div class="stat-item">
+      <span class="stat-number">~1,100</span>
+      <span class="stat-label">Imágenes reales</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-number">3</span>
+      <span class="stat-label">Modelos en pipeline</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-number">8</span>
+      <span class="stat-label">Clases anatómicas</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-number">3</span>
+      <span class="stat-label">Niveles taxonómicos</span>
+    </div>
+  </div>
+
+  <!-- ── TAXONOMÍA MIND MAP ───────────────────────────── -->
+  <section id="taxonomia" style="background: var(--surface-1);">
+    <div class="container">
+      <p class="section-label reveal">Taxonomía del Dataset</p>
+      <h2 class="section-title reveal">Clasificación Taxonómica Real</h2>
+      <p class="section-desc reveal">
+        Las especies del dataset pertenecen a 4 familias, 7 géneros y 13 especies registradas en campo.
+        La anotación en Label Studio sigue esta jerarquía exacta: Familia → Género → Especie.
+      </p>
+
+      <!-- Taxonomy SVG Mind Map -->
+      <div class="uc-diagram-container reveal" style="background: var(--surface-1);">
+        <svg viewBox="0 0 860 500" xmlns="http://www.w3.org/2000/svg"
+             font-family="Inter, sans-serif">
+          <defs>
+            <marker id="arr-tax" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto">
+              <path d="M0,0 L7,3 L0,6 Z" fill="#74c69d" opacity="0.7"/>
+            </marker>
+          </defs>
+
+          <!-- Background -->
+          <rect width="860" height="500" fill="#0e2214" rx="20"/>
+          <pattern id="dots" width="20" height="20" patternUnits="userSpaceOnUse">
+            <circle cx="10" cy="10" r="0.8" fill="#40916c" opacity="0.25"/>
+          </pattern>
+          <rect width="860" height="500" fill="url(#dots)" rx="20"/>
+
+          <!-- ROOT: Anuros -->
+          <rect x="20" y="210" width="110" height="44" rx="12"
+                fill="#c04f3a" stroke="#e87060" stroke-width="1.5"/>
+          <text x="75" y="237" text-anchor="middle" fill="#fff"
+                font-size="15" font-weight="700" font-family="Space Grotesk, sans-serif">Anuros</text>
+
+          <!-- Main branch line -->
+          <line x1="130" y1="232" x2="175" y2="232" stroke="#74c69d" stroke-width="1.5"/>
+          <!-- Vertical spine -->
+          <line x1="175" y1="72" x2="175" y2="430" stroke="#40916c" stroke-width="1.5"/>
+
+          <!-- ── DENDROBATIDAE ──────────────── -->
+          <line x1="175" y1="72" x2="220" y2="72" stroke="#40916c" stroke-width="1.3"/>
+          <rect x="220" y="52" width="136" height="40" rx="10"
+                fill="rgba(64,145,108,0.2)" stroke="#52b788" stroke-width="1.4"/>
+          <text x="288" y="76" text-anchor="middle" fill="#74c69d"
+                font-size="12" font-weight="700">Dendrobatidae</text>
+
+          <!-- Dendrobates -->
+          <line x1="356" y1="58" x2="392" y2="46" stroke="#40916c" stroke-width="1"/>
+          <text x="398" y="50" fill="#95d5b2" font-size="11" font-weight="500">Dendrobates</text>
+          <line x1="490" y1="46" x2="520" y2="34" stroke="#40916c" stroke-width="1"/>
+          <text x="526" y="38" fill="#b7e4c7" font-size="10.5">Dendrobates truncatus</text>
+
+          <!-- Leucostethus -->
+          <line x1="356" y1="80" x2="392" y2="90" stroke="#40916c" stroke-width="1"/>
+          <text x="398" y="94" fill="#95d5b2" font-size="11" font-weight="500">Leucostethus</text>
+          <line x1="490" y1="90" x2="520" y2="78" stroke="#40916c" stroke-width="1"/>
+          <text x="526" y="82" fill="#b7e4c7" font-size="10.5">Leucostethus fraterdanieli</text>
+
+          <!-- ── HYLIDAE ─────────────────────── -->
+          <line x1="175" y1="185" x2="220" y2="185" stroke="#40916c" stroke-width="1.3"/>
+          <rect x="220" y="165" width="136" height="40" rx="10"
+                fill="rgba(226,166,19,0.15)" stroke="#e2a613" stroke-width="1.4"/>
+          <text x="288" y="189" text-anchor="middle" fill="#e2c46d"
+                font-size="12" font-weight="700">Hylidae</text>
+
+          <!-- Dendropsophus -->
+          <line x1="356" y1="172" x2="392" y2="155" stroke="#b8860b" stroke-width="1"/>
+          <text x="398" y="159" fill="#d4a017" font-size="11" font-weight="500">Dendropsophus</text>
+          <line x1="500" y1="152" x2="525" y2="140" stroke="#b8860b" stroke-width="1"/>
+          <text x="531" y="144" fill="#e2c46d" font-size="10.5">Dendropsophus bogerti</text>
+          <line x1="500" y1="162" x2="525" y2="168" stroke="#b8860b" stroke-width="1"/>
+          <text x="531" y="172" fill="#e2c46d" font-size="10.5">Dendropsophus microcephalus</text>
+
+          <!-- Hyloscirtus -->
+          <line x1="356" y1="198" x2="392" y2="210" stroke="#b8860b" stroke-width="1"/>
+          <text x="398" y="214" fill="#d4a017" font-size="11" font-weight="500">Hyloscirtus</text>
+          <line x1="470" y1="210" x2="525" y2="210" stroke="#b8860b" stroke-width="1"/>
+          <text x="531" y="214" fill="#e2c46d" font-size="10.5">Hyloscirtus palmatus</text>
+
+          <!-- ── STRABOMANTIDAE ───────────────── -->
+          <line x1="175" y1="315" x2="220" y2="315" stroke="#40916c" stroke-width="1.3"/>
+          <rect x="220" y="295" width="136" height="40" rx="10"
+                fill="rgba(82,183,136,0.12)" stroke="#c04f3a" stroke-width="1.4"/>
+          <text x="288" y="319" text-anchor="middle" fill="#e87060"
+                font-size="12" font-weight="700">Strabomantidae</text>
+
+          <!-- Pristimantis -->
+          <line x1="356" y1="315" x2="392" y2="315" stroke="#9b2c2c" stroke-width="1"/>
+          <text x="398" y="319" fill="#fc8181" font-size="11" font-weight="500">Pristimantis</text>
+          <line x1="490" y1="302" x2="525" y2="266" stroke="#9b2c2c" stroke-width="1"/>
+          <text x="531" y="270" fill="#feb2b2" font-size="10.5">Pristimantis acanthinus</text>
+          <line x1="490" y1="308" x2="525" y2="292" stroke="#9b2c2c" stroke-width="1"/>
+          <text x="531" y="296" fill="#feb2b2" font-size="10.5">Pristimantis norandinus</text>
+          <line x1="490" y1="315" x2="525" y2="316" stroke="#9b2c2c" stroke-width="1"/>
+          <text x="531" y="320" fill="#feb2b2" font-size="10.5">Pristimantis paisa</text>
+          <line x1="490" y1="322" x2="525" y2="340" stroke="#9b2c2c" stroke-width="1"/>
+          <text x="531" y="344" fill="#feb2b2" font-size="10.5">Pristimantis penelopus</text>
+
+          <!-- ── BUFONIDAE ───────────────────── -->
+          <line x1="175" y1="430" x2="220" y2="430" stroke="#40916c" stroke-width="1.3"/>
+          <rect x="220" y="410" width="136" height="40" rx="10"
+                fill="rgba(64,145,108,0.15)" stroke="#52b788" stroke-width="1.4"/>
+          <text x="288" y="434" text-anchor="middle" fill="#74c69d"
+                font-size="12" font-weight="700">Bufonidae</text>
+
+          <!-- Rhinella -->
+          <line x1="356" y1="430" x2="392" y2="430" stroke="#40916c" stroke-width="1"/>
+          <text x="398" y="434" fill="#95d5b2" font-size="11" font-weight="500">Rhinella</text>
+          <line x1="450" y1="424" x2="525" y2="412" stroke="#40916c" stroke-width="1"/>
+          <text x="531" y="416" fill="#b7e4c7" font-size="10.5">Rhinella alata</text>
+          <line x1="450" y1="436" x2="525" y2="448" stroke="#40916c" stroke-width="1"/>
+          <text x="531" y="452" fill="#b7e4c7" font-size="10.5">Rhinella horribilis</text>
+
+          <!-- Label Studio JSON badge -->
+          <rect x="680" y="20" width="162" height="70" rx="10"
+                fill="rgba(10,26,14,0.9)" stroke="#40916c" stroke-width="1"/>
+          <text x="761" y="40" text-anchor="middle" fill="#52b788" font-size="9.5" font-weight="700">Label Studio · JSON</text>
+          <text x="696" y="57" fill="#74c69d" font-size="8.5">"taxonomy": [[</text>
+          <text x="696" y="69" fill="#74c69d" font-size="8.5">  "Hylidae", "Dendropsophus",</text>
+          <text x="696" y="81" fill="#74c69d" font-size="8.5">  "D. microcephalus"</text>
+          <text x="696" y="93" fill="#74c69d" font-size="8">]]</text>
+        </svg>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- ── OBJETIVO ───────────────────────────────────── -->
+  <section id="objetivo">
+    <div class="container">
+      <p class="section-label reveal">Objetivo del Proyecto</p>
+      <h2 class="section-title reveal">Identificación de Anura con IA de última generación</h2>
+      <p class="section-desc reveal">
+        Construir un sistema integral de visión por computadora que identifique especies de ranas a nivel taxonómico completo
+        (familia → género → especie), segmente el cuerpo sobre el fondo e identifique partes anatómicas específicas con
+        precisión a nivel de píxel. El sistema integra coordenadas GPS para contextualización en biodiversidad.
+      </p>
+      <div class="cards-grid">
+        <div class="card reveal">
+          <div class="card-icon">🔬</div>
+          <h3>Clasificación Taxonómica</h3>
+          <p>Predicción simultánea de Familia, Género y Especie mediante un modelo multi-tarea con fine-tuning sobre BioCLIP, pre-entrenado en datos biológicos.</p>
+        </div>
+        <div class="card reveal">
+          <div class="card-icon">🎭</div>
+          <h3>Segmentación Binaria</h3>
+          <p>U-Net con backbone ResNet-34 para separar la rana del fondo con máscara binaria pixel-exacta. Incluye augmentación geométrica y fotométrica intensiva.</p>
+        </div>
+        <div class="card reveal">
+          <div class="card-icon">🧬</div>
+          <h3>Anatomía Semántica</h3>
+          <p>SegFormer fine-tuned identifica 8 partes anatómicas: cuerpo, ojos, manos, patas, tímpano, boca y piel — útil en investigación de campo y laboratorio.</p>
+        </div>
+        <div class="card reveal">
+          <div class="card-icon">📍</div>
+          <h3>Geolocalización</h3>
+          <p>Integración de coordenadas GPS en formato JSON por imagen, con conexión opcional a GBIF para enriquecer los registros de ocurrencia de biodiversidad.</p>
+        </div>
+        <div class="card reveal">
+          <div class="card-icon">🛡️</div>
+          <h3>Falsos Positivos</h3>
+          <p>El dataset incluye imágenes de objetos similares a ranas y fondos confusos para entrenar robustez ante condiciones reales de campo.</p>
+        </div>
+        <div class="card reveal">
+          <div class="card-icon">⚡</div>
+          <h3>API REST</h3>
+          <p>Endpoint FastAPI <code style="color:var(--accent);font-family:'JetBrains Mono'">/predict</code> que acepta imagen y devuelve JSON con especie, máscara, mapa anatómico y coordenadas.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- ── PIPELINE ───────────────────────────────────── -->
+  <section id="pipeline">
+    <div class="container">
+      <p class="section-label reveal">Arquitectura del Sistema</p>
+      <h2 class="section-title reveal">Pipeline Modular de IA</h2>
+      <p class="section-desc reveal">
+        Tres modelos especializados, cada uno con su propia arquitectura y estrategia de fine-tuning,
+        componen un pipeline secuencial que procesa cada imagen de entrada de forma integral.
+      </p>
+
+      <div class="pipeline-wrapper reveal">
+        <!-- Input -->
+        <div class="pipeline-input">
+          <div class="pipeline-input-icon">📷</div>
+          <div class="pipeline-input-text">
+            <h4>Imagen de Entrada</h4>
+            <p>JPEG · PNG · Campo / Laboratorio · GPS metadata</p>
+          </div>
+        </div>
+
+        <div class="pipeline-arrow"></div>
+
+        <!-- Models row -->
+        <div class="pipeline-models">
+          <div class="pipeline-model m1">
+            <div class="model-num">MODELO 01 / CLASIFICACIÓN</div>
+            <div class="model-name">BioCLIP Multi-tarea</div>
+            <div class="model-desc">Fine-tuning sobre encoder biológico pre-entrenado con tres cabezas independientes para clasificación jerárquica.</div>
+            <div class="model-tags">
+              <span class="model-tag">Familia</span>
+              <span class="model-tag">Género</span>
+              <span class="model-tag">Especie</span>
+              <span class="model-tag">CrossEntropy</span>
+              <span class="model-tag">LLRD</span>
+            </div>
+          </div>
+          <div class="pipeline-model m2">
+            <div class="model-num">MODELO 02 / SEGMENTACIÓN BINARIA</div>
+            <div class="model-name">U-Net + ResNet-34</div>
+            <div class="model-desc">Segmentación binaria rana/fondo con decoder skip-connection y pérdida BCE + Dice para manejar desbalance de clases.</div>
+            <div class="model-tags">
+              <span class="model-tag">Máscara Binaria</span>
+              <span class="model-tag">Dice Loss</span>
+              <span class="model-tag">Albumentations</span>
+              <span class="model-tag">CutMix</span>
+            </div>
+          </div>
+          <div class="pipeline-model m3">
+            <div class="model-num">MODELO 03 / SEGMENTACIÓN SEMÁNTICA</div>
+            <div class="model-name">SegFormer mit-b2</div>
+            <div class="model-desc">Segmentación semántica multi-clase de 8 partes anatómicas con backbone transformer pre-entrenado en ADE20K.</div>
+            <div class="model-tags">
+              <span class="model-tag">8 Clases</span>
+              <span class="model-tag">mIoU</span>
+              <span class="model-tag">Weighted CE</span>
+              <span class="model-tag">Mosaic Aug</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="pipeline-arrow" style="transform: rotate(0deg);"></div>
+
+        <!-- Outputs -->
+        <div class="pipeline-output">
+          <div class="output-item">
+            <span class="output-icon">🏷️</span>
+            <span class="output-text">Familia / Género / Especie</span>
+          </div>
+          <div class="output-item">
+            <span class="output-icon">🖼️</span>
+            <span class="output-text">Máscara binaria rana</span>
+          </div>
+          <div class="output-item">
+            <span class="output-icon">🧩</span>
+            <span class="output-text">Mapa semántico partes</span>
+          </div>
+          <div class="output-item">
+            <span class="output-icon">📍</span>
+            <span class="output-text">Coordenadas GPS + GBIF</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- ── USE CASE DIAGRAM ───────────────────────────── -->
+  <section id="use-case">
+    <div class="container">
+      <p class="section-label reveal">Diagrama UML</p>
+      <h2 class="section-title reveal">Diagrama de Casos de Uso</h2>
+      <p class="section-desc reveal">
+        Representación completa de las interacciones entre los actores del sistema — Investigador/Científico de campo,
+        GBIF, API REST — y los módulos de Gestión de entrada, Clasificación taxonómica, Segmentación binaria,
+        Segmentación semántica y Resultados.
+      </p>
+
+      <div class="uc-diagram-container reveal">
+        <!-- SVG Use Case Diagram -->
+        <svg viewBox="0 0 1100 780" xmlns="http://www.w3.org/2000/svg"
+             font-family="Inter, sans-serif" font-size="11.5">
+
+          <!-- Defs -->
+          <defs>
+            <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+              <path d="M0,0 L8,3 L0,6 Z" fill="#52b788" opacity="0.7"/>
+            </marker>
+            <marker id="arrow-dashed" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+              <path d="M0,0 L8,3 L0,6 Z" fill="#74c69d" opacity="0.5"/>
+            </marker>
+            <!-- Glow filter -->
+            <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="3" result="blur"/>
+              <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+            </filter>
+            <!-- Card shadow -->
+            <filter id="card-shadow" x="-5%" y="-5%" width="110%" height="120%">
+              <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#000" flood-opacity="0.5"/>
+            </filter>
+          </defs>
+
+          <!-- Background -->
+          <rect width="1100" height="780" fill="#0a1a0e" rx="22"/>
+          <!-- Subtle grid -->
+          <pattern id="grid" width="30" height="30" patternUnits="userSpaceOnUse">
+            <path d="M 30 0 L 0 0 0 30" fill="none" stroke="#40916c" stroke-width="0.3" opacity="0.2"/>
+          </pattern>
+          <rect width="1100" height="780" fill="url(#grid)" rx="22"/>
+
+          <!-- ══════════════════════════════════════════
+               SYSTEM BOUNDARY — Main
+          ═══════════════════════════════════════════ -->
+          <rect x="90" y="50" width="830" height="700"
+                fill="none" stroke="#40916c" stroke-width="1.5"
+                stroke-dasharray="6,4" rx="16" opacity="0.6"/>
+          <text x="505" y="38" text-anchor="middle"
+                font-family="Space Grotesk, sans-serif"
+                font-size="14" font-weight="700"
+                fill="#74c69d" letter-spacing="0.04em">
+            Sistema de Identificación de Ranas (Anura)
+          </text>
+
+          <!-- ══════════════════════════════════════════
+               ACTORS
+          ═══════════════════════════════════════════ -->
+
+          <!-- Actor: Investigador/Biólogo (left) -->
+          <g id="actor-researcher" transform="translate(32, 310)">
+            <!-- head -->
+            <circle cx="0" cy="-26" r="13" fill="none" stroke="#52b788" stroke-width="1.8"/>
+            <!-- body -->
+            <line x1="0" y1="-13" x2="0" y2="22" stroke="#52b788" stroke-width="1.8"/>
+            <!-- arms -->
+            <line x1="-18" y1="3" x2="18" y2="3" stroke="#52b788" stroke-width="1.8"/>
+            <!-- legs -->
+            <line x1="0" y1="22" x2="-13" y2="48" stroke="#52b788" stroke-width="1.8"/>
+            <line x1="0" y1="22" x2="13" y2="48" stroke="#52b788" stroke-width="1.8"/>
+            <text x="0" y="66" text-anchor="middle" fill="#74c69d" font-weight="600" font-size="11">Investigador /</text>
+            <text x="0" y="80" text-anchor="middle" fill="#74c69d" font-weight="600" font-size="11">Científico de campo</text>
+          </g>
+
+          <!-- Actor: GBIF (top-left) -->
+          <g id="actor-gbif" transform="translate(340, 32)">
+            <rect x="-28" y="-18" width="56" height="36" rx="8"
+                  fill="rgba(64,145,108,0.15)" stroke="#40916c" stroke-width="1.4"/>
+            <text x="0" y="6" text-anchor="middle" fill="#74c69d" font-weight="700" font-size="11">GBIF</text>
+            <text x="0" y="30" text-anchor="middle" fill="#52b788" font-size="10">(Base de datos global)</text>
+          </g>
+
+          <!-- Actor: API REST (right) -->
+          <g id="actor-api" transform="translate(1065, 310)">
+            <rect x="-28" y="-18" width="56" height="36" rx="8"
+                  fill="rgba(64,145,108,0.15)" stroke="#40916c" stroke-width="1.4"/>
+            <text x="0" y="6" text-anchor="middle" fill="#74c69d" font-weight="700" font-size="11">API REST</text>
+            <text x="0" y="28" text-anchor="middle" fill="#52b788" font-size="10">FastAPI</text>
+            <text x="0" y="48" text-anchor="middle" fill="#52b788" font-size="10">/predict</text>
+          </g>
+
+          <!-- ══════════════════════════════════════════
+               SUB-SYSTEM 1: GESTIÓN DE ENTRADA
+          ═══════════════════════════════════════════ -->
+          <rect x="108" y="68" width="260" height="220"
+                fill="rgba(15,35,24,0.9)" stroke="#40916c" stroke-width="1.2"
+                rx="12" filter="url(#card-shadow)"/>
+          <rect x="108" y="68" width="260" height="4" fill="url(#grad-teal)" rx="2"/>
+          <defs>
+            <linearGradient id="grad-teal" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#40916c"/>
+              <stop offset="100%" stop-color="#52b788"/>
+            </linearGradient>
+            <linearGradient id="grad-blue" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#38b2ac"/>
+              <stop offset="100%" stop-color="#52b788"/>
+            </linearGradient>
+            <linearGradient id="grad-amber" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#52b788"/>
+              <stop offset="100%" stop-color="#e2a613"/>
+            </linearGradient>
+            <linearGradient id="grad-purple" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#40916c"/>
+              <stop offset="100%" stop-color="#74c69d"/>
+            </linearGradient>
+          </defs>
+          <text x="238" y="92" text-anchor="middle"
+                font-family="Space Grotesk, sans-serif" font-size="12" font-weight="700"
+                fill="#74c69d">Gestión de entrada</text>
+
+          <!-- UC01 -->
+          <ellipse cx="238" cy="126" rx="88" ry="20" fill="rgba(26,60,37,0.95)" stroke="#40916c" stroke-width="1.2"/>
+          <text x="238" y="130" text-anchor="middle" fill="#b7e4c7" font-size="10.5" font-weight="500">UC01 · Cargar imagen</text>
+
+          <!-- UC02 -->
+          <ellipse cx="238" cy="172" rx="88" ry="20" fill="rgba(26,60,37,0.95)" stroke="#40916c" stroke-width="1.2"/>
+          <text x="238" y="168" text-anchor="middle" fill="#b7e4c7" font-size="10.5" font-weight="500">UC02 · Registrar coords</text>
+          <text x="238" y="181" text-anchor="middle" fill="#74c69d" font-size="9.5">geográficas (GPS)</text>
+
+          <!-- UC03 -->
+          <ellipse cx="238" cy="222" rx="88" ry="20" fill="rgba(26,60,37,0.95)" stroke="#40916c" stroke-width="1.2"/>
+          <text x="238" y="218" text-anchor="middle" fill="#b7e4c7" font-size="10.5" font-weight="500">UC03 · Validar imagen</text>
+          <text x="238" y="231" text-anchor="middle" fill="#74c69d" font-size="9.5">real / falso positivo</text>
+
+          <!-- UC04 -->
+          <ellipse cx="238" cy="268" rx="88" ry="20" fill="rgba(26,60,37,0.95)" stroke="#40916c" stroke-width="1.2"/>
+          <text x="238" y="272" text-anchor="middle" fill="#b7e4c7" font-size="10.5" font-weight="500">UC04 · Aplicar augmentation</text>
+
+          <!-- ══════════════════════════════════════════
+               SUB-SYSTEM 2: CLASIFICACIÓN TAXONÓMICA
+          ═══════════════════════════════════════════ -->
+          <rect x="108" y="310" width="260" height="220"
+                fill="rgba(15,35,24,0.9)" stroke="#52b788" stroke-width="1.2"
+                rx="12" filter="url(#card-shadow)"/>
+          <rect x="108" y="310" width="260" height="4" fill="url(#grad-purple)" rx="2"/>
+          <text x="238" y="334" text-anchor="middle"
+                font-family="Space Grotesk, sans-serif" font-size="11" font-weight="700"
+                fill="#74c69d">Clasificación Taxonómica</text>
+          <text x="238" y="348" text-anchor="middle" fill="#40916c" font-size="9.5">(BioCLIP Multi-tarea Fine-tuned)</text>
+
+          <!-- UC05 -->
+          <ellipse cx="200" cy="378" rx="72" ry="19" fill="rgba(26,60,37,0.95)" stroke="#52b788" stroke-width="1.2"/>
+          <text x="200" y="382" text-anchor="middle" fill="#b7e4c7" font-size="10.5" font-weight="500">UC05 · Identificar familia</text>
+
+          <!-- UC06 -->
+          <ellipse cx="200" cy="422" rx="72" ry="19" fill="rgba(26,60,37,0.95)" stroke="#52b788" stroke-width="1.2"/>
+          <text x="200" y="426" text-anchor="middle" fill="#b7e4c7" font-size="10.5" font-weight="500">UC06 · Identificar género</text>
+
+          <!-- UC07 -->
+          <ellipse cx="200" cy="466" rx="72" ry="19" fill="rgba(26,60,37,0.95)" stroke="#52b788" stroke-width="1.2"/>
+          <text x="200" y="470" text-anchor="middle" fill="#b7e4c7" font-size="10.5" font-weight="500">UC07 · Identificar especie</text>
+
+          <!-- UC GBIF -->
+          <ellipse cx="200" cy="510" rx="72" ry="19" fill="rgba(26,60,37,0.95)" stroke="#52b788" stroke-width="1.2"/>
+          <text x="200" y="514" text-anchor="middle" fill="#b7e4c7" font-size="10.5" font-weight="500">UC08 · Consultar GBIF</text>
+
+          <!-- ══════════════════════════════════════════
+               SUB-SYSTEM 3: SEG. BINARIA
+          ═══════════════════════════════════════════ -->
+          <rect x="416" y="68" width="270" height="200"
+                fill="rgba(15,35,24,0.9)" stroke="#38b2ac" stroke-width="1.2"
+                rx="12" filter="url(#card-shadow)"/>
+          <rect x="416" y="68" width="270" height="4" fill="url(#grad-blue)" rx="2"/>
+          <text x="551" y="92" text-anchor="middle"
+                font-family="Space Grotesk, sans-serif" font-size="11" font-weight="700"
+                fill="#74c69d">Segmentación Binaria</text>
+          <text x="551" y="107" text-anchor="middle" fill="#40916c" font-size="9.5">(U-Net + ResNet-34)</text>
+
+          <!-- UC09 -->
+          <ellipse cx="551" cy="138" rx="96" ry="19" fill="rgba(26,60,37,0.95)" stroke="#38b2ac" stroke-width="1.2"/>
+          <text x="551" y="142" text-anchor="middle" fill="#b7e4c7" font-size="10.5" font-weight="500">UC09 · Segmentar cuerpo rana</text>
+
+          <!-- UC10 -->
+          <ellipse cx="551" cy="182" rx="96" ry="19" fill="rgba(26,60,37,0.95)" stroke="#38b2ac" stroke-width="1.2"/>
+          <text x="551" y="178" text-anchor="middle" fill="#b7e4c7" font-size="10.5" font-weight="500">UC10 · Aplicar augmentation</text>
+          <text x="551" y="191" text-anchor="middle" fill="#74c69d" font-size="9.5">geométrica + fotométrica</text>
+
+          <!-- UC11 -->
+          <ellipse cx="551" cy="234" rx="96" ry="19" fill="rgba(26,60,37,0.95)" stroke="#38b2ac" stroke-width="1.2"/>
+          <text x="551" y="230" text-anchor="middle" fill="#b7e4c7" font-size="10.5" font-weight="500">UC11 · Generar máscara binaria</text>
+          <text x="551" y="243" text-anchor="middle" fill="#74c69d" font-size="9.5">BCE + Dice Loss</text>
+
+          <!-- ══════════════════════════════════════════
+               SUB-SYSTEM 4: SEG. SEMÁNTICA
+          ═══════════════════════════════════════════ -->
+          <rect x="416" y="298" width="270" height="290"
+                fill="rgba(15,35,24,0.9)" stroke="#e2a613" stroke-width="1.2"
+                rx="12" filter="url(#card-shadow)" opacity="0.95"/>
+          <rect x="416" y="298" width="270" height="4" fill="url(#grad-amber)" rx="2"/>
+          <text x="551" y="322" text-anchor="middle"
+                font-family="Space Grotesk, sans-serif" font-size="11" font-weight="700"
+                fill="#74c69d">Segmentación Semántica</text>
+          <text x="551" y="337" text-anchor="middle" fill="#40916c" font-size="9.5">(SegFormer mit-b2 Fine-tuned)</text>
+
+          <!-- UC12 Detectar ojos -->
+          <ellipse cx="551" cy="366" rx="96" ry="18" fill="rgba(26,60,37,0.95)" stroke="#e2a613" stroke-width="1.1"/>
+          <text x="551" y="370" text-anchor="middle" fill="#b7e4c7" font-size="10.5" font-weight="500">UC12 · Detectar ojos</text>
+
+          <!-- UC13 -->
+          <ellipse cx="551" cy="406" rx="96" ry="18" fill="rgba(26,60,37,0.95)" stroke="#e2a613" stroke-width="1.1"/>
+          <text x="551" y="402" text-anchor="middle" fill="#b7e4c7" font-size="10.5" font-weight="500">UC13 · Detectar manos /</text>
+          <text x="551" y="415" text-anchor="middle" fill="#74c69d" font-size="9.5">dedos anteriores</text>
+
+          <!-- UC14 -->
+          <ellipse cx="551" cy="450" rx="96" ry="18" fill="rgba(26,60,37,0.95)" stroke="#e2a613" stroke-width="1.1"/>
+          <text x="551" y="446" text-anchor="middle" fill="#b7e4c7" font-size="10.5" font-weight="500">UC14 · Detectar patas /</text>
+          <text x="551" y="459" text-anchor="middle" fill="#74c69d" font-size="9.5">dedos posteriores</text>
+
+          <!-- UC15 -->
+          <ellipse cx="551" cy="494" rx="96" ry="18" fill="rgba(26,60,37,0.95)" stroke="#e2a613" stroke-width="1.1"/>
+          <text x="551" y="498" text-anchor="middle" fill="#b7e4c7" font-size="10.5" font-weight="500">UC15 · Detectar tímpano &amp; boca</text>
+
+          <!-- UC16 -->
+          <ellipse cx="551" cy="538" rx="96" ry="18" fill="rgba(26,60,37,0.95)" stroke="#e2a613" stroke-width="1.1"/>
+          <text x="551" y="542" text-anchor="middle" fill="#b7e4c7" font-size="10.5" font-weight="500">UC16 · Generar mapa semántico</text>
+
+          <!-- UC17 -->
+          <ellipse cx="551" cy="571" rx="96" ry="0"/>
+          <!-- (merged into 538 ellipse for space) -->
+
+          <!-- ══════════════════════════════════════════
+               SUB-SYSTEM 5: RESULTADOS
+          ═══════════════════════════════════════════ -->
+          <rect x="730" y="68" width="178" height="350"
+                fill="rgba(15,35,24,0.9)" stroke="#52b788" stroke-width="1.2"
+                rx="12" filter="url(#card-shadow)"/>
+          <rect x="730" y="68" width="178" height="4" fill="url(#grad-teal)" rx="2"/>
+          <text x="819" y="91" text-anchor="middle"
+                font-family="Space Grotesk, sans-serif" font-size="11" font-weight="700"
+                fill="#74c69d">Resultados</text>
+          <text x="819" y="106" text-anchor="middle" fill="#40916c" font-size="9.5">y Exportación</text>
+
+          <!-- UC: Consolidar pipeline -->
+          <ellipse cx="819" cy="140" rx="72" ry="18" fill="rgba(26,60,37,0.95)" stroke="#52b788" stroke-width="1.1"/>
+          <text x="819" y="136" text-anchor="middle" fill="#b7e4c7" font-size="10" font-weight="500">UC17 · Consolidar</text>
+          <text x="819" y="149" text-anchor="middle" fill="#74c69d" font-size="9.5">pipeline completo</text>
+
+          <!-- UC: Visualizar -->
+          <ellipse cx="819" cy="190" rx="72" ry="18" fill="rgba(26,60,37,0.95)" stroke="#52b788" stroke-width="1.1"/>
+          <text x="819" y="186" text-anchor="middle" fill="#b7e4c7" font-size="10" font-weight="500">UC18 · Visualizar</text>
+          <text x="819" y="199" text-anchor="middle" fill="#74c69d" font-size="9.5">superposición máscara</text>
+
+          <!-- UC: Exportar JSON -->
+          <ellipse cx="819" cy="240" rx="72" ry="18" fill="rgba(26,60,37,0.95)" stroke="#52b788" stroke-width="1.1"/>
+          <text x="819" y="236" text-anchor="middle" fill="#b7e4c7" font-size="10" font-weight="500">UC19 · Exportar JSON</text>
+          <text x="819" y="249" text-anchor="middle" fill="#74c69d" font-size="9.5">especie + partes + coords</text>
+
+          <!-- UC: Consultar API -->
+          <ellipse cx="819" cy="290" rx="72" ry="18" fill="rgba(26,60,37,0.95)" stroke="#52b788" stroke-width="1.1"/>
+          <text x="819" y="286" text-anchor="middle" fill="#b7e4c7" font-size="10" font-weight="500">UC20 · Consultar API</text>
+          <text x="819" y="299" text-anchor="middle" fill="#74c69d" font-size="9.5">REST /predict</text>
+
+          <!-- UC: Evaluar métricas -->
+          <ellipse cx="819" cy="340" rx="72" ry="18" fill="rgba(26,60,37,0.95)" stroke="#52b788" stroke-width="1.1"/>
+          <text x="819" y="336" text-anchor="middle" fill="#b7e4c7" font-size="10" font-weight="500">UC21 · Evaluar métricas</text>
+          <text x="819" y="349" text-anchor="middle" fill="#74c69d" font-size="9.5">mIoU · F1 · Dice</text>
+
+          <!-- UC: Exportar reporte -->
+          <ellipse cx="819" cy="390" rx="72" ry="18" fill="rgba(26,60,37,0.95)" stroke="#52b788" stroke-width="1.1"/>
+          <text x="819" y="386" text-anchor="middle" fill="#b7e4c7" font-size="10" font-weight="500">UC22 · Exportar reporte</text>
+          <text x="819" y="399" text-anchor="middle" fill="#74c69d" font-size="9.5">ONNX / Visualización</text>
+
+          <!-- ══════════════════════════════════════════
+               LEGEND BOX (bottom-right inside boundary)
+          ═══════════════════════════════════════════ -->
+          <rect x="730" y="440" width="178" height="120"
+                fill="rgba(10,26,14,0.85)" stroke="#40916c" stroke-width="1"
+                rx="10" opacity="0.9"/>
+          <text x="740" y="460" fill="#52b788" font-size="9.5" font-weight="700">Clases semánticas:</text>
+          <text x="740" y="476" fill="#74c69d" font-size="9">0 Fondo · 1 Cuerpo</text>
+          <text x="740" y="491" fill="#74c69d" font-size="9">2 Ojos · 3 Manos</text>
+          <text x="740" y="506" fill="#74c69d" font-size="9">4 Patas · 5 Tímpano</text>
+          <text x="740" y="521" fill="#74c69d" font-size="9">6 Boca · 7 Piel</text>
+          <text x="740" y="538" fill="#40916c" font-size="9" font-style="italic">8 clases · SegFormer</text>
+
+          <!-- ══════════════════════════════════════════
+               CONNECTIONS — Actor → Use Cases
+          ═══════════════════════════════════════════ -->
+          <!-- Researcher → Gestión de entrada -->
+          <line x1="62" y1="298" x2="148" y2="250" stroke="#52b788" stroke-width="1.2" stroke-dasharray="none" opacity="0.6" marker-end="url(#arrow)"/>
+          <line x1="62" y1="308" x2="148" y2="170" stroke="#52b788" stroke-width="1.2" opacity="0.5" marker-end="url(#arrow)"/>
+          <line x1="62" y1="318" x2="148" y2="126" stroke="#52b788" stroke-width="1.2" opacity="0.4" marker-end="url(#arrow)"/>
+
+          <!-- Researcher → Clasificación -->
+          <line x1="62" y1="338" x2="126" y2="378" stroke="#52b788" stroke-width="1.2" opacity="0.6" marker-end="url(#arrow)"/>
+          <line x1="62" y1="348" x2="126" y2="422" stroke="#52b788" stroke-width="1.2" opacity="0.5" marker-end="url(#arrow)"/>
+          <line x1="62" y1="358" x2="126" y2="466" stroke="#52b788" stroke-width="1.2" opacity="0.4" marker-end="url(#arrow)"/>
+
+          <!-- Researcher → Resultados -->
+          <line x1="62" y1="290" x2="747" y2="190" stroke="#52b788" stroke-width="1.1" stroke-dasharray="5,4" opacity="0.35" marker-end="url(#arrow-dashed)"/>
+          <line x1="62" y1="280" x2="747" y2="340" stroke="#52b788" stroke-width="1.1" stroke-dasharray="5,4" opacity="0.3" marker-end="url(#arrow-dashed)"/>
+
+          <!-- GBIF → Consultar GBIF -->
+          <line x1="340" y1="50" x2="228" y2="508" stroke="#40916c" stroke-width="1.1" stroke-dasharray="5,4" opacity="0.45" marker-end="url(#arrow-dashed)"/>
+
+          <!-- Gestión → Segmentación Binaria (includes) -->
+          <line x1="326" y1="172" x2="416" y2="138" stroke="#38b2ac" stroke-width="1" stroke-dasharray="4,3" opacity="0.55" marker-end="url(#arrow-dashed)"/>
+          <text x="368" y="148" text-anchor="middle" fill="#38b2ac" font-size="8" opacity="0.8">«include»</text>
+
+          <!-- Gestión → Segmentación Semántica (includes) -->
+          <line x1="326" y1="200" x2="416" y2="366" stroke="#e2a613" stroke-width="1" stroke-dasharray="4,3" opacity="0.5" marker-end="url(#arrow-dashed)"/>
+          <text x="365" y="285" text-anchor="middle" fill="#e2a613" font-size="8" opacity="0.8">«include»</text>
+
+          <!-- Clasificación → Resultados -->
+          <line x1="272" y1="378" x2="747" y2="140" stroke="#74c69d" stroke-width="1" stroke-dasharray="4,3" opacity="0.4" marker-end="url(#arrow-dashed)"/>
+
+          <!-- Segmentación Binaria → Resultados -->
+          <line x1="647" y1="138" x2="747" y2="140" stroke="#38b2ac" stroke-width="1.1" opacity="0.55" marker-end="url(#arrow)"/>
+          <line x1="647" y1="234" x2="747" y2="190" stroke="#38b2ac" stroke-width="1" opacity="0.45" marker-end="url(#arrow)"/>
+
+          <!-- Segmentación Semántica → Resultados -->
+          <line x1="647" y1="366" x2="747" y2="240" stroke="#e2a613" stroke-width="1" opacity="0.5" marker-end="url(#arrow)"/>
+          <line x1="647" y1="450" x2="747" y2="290" stroke="#e2a613" stroke-width="1" opacity="0.4" marker-end="url(#arrow)"/>
+          <line x1="647" y1="516" x2="747" y2="340" stroke="#e2a613" stroke-width="1" opacity="0.35" marker-end="url(#arrow)"/>
+
+          <!-- API REST Actor → UC Consultar API -->
+          <line x1="1037" y1="310" x2="891" y2="290" stroke="#52b788" stroke-width="1.2" opacity="0.6" marker-end="url(#arrow)"/>
+          <line x1="1037" y1="325" x2="891" y2="340" stroke="#52b788" stroke-width="1.1" opacity="0.5" marker-end="url(#arrow)"/>
+
+          <!-- ══════════════════════════════════════════
+               EVALUATION SUB-SECTION (bottom)
+          ═══════════════════════════════════════════ -->
+          <rect x="108" y="570" width="280" height="160"
+                fill="rgba(15,35,24,0.9)" stroke="#40916c" stroke-width="1.1"
+                rx="12" filter="url(#card-shadow)"/>
+          <rect x="108" y="570" width="280" height="4" fill="url(#grad-teal)" rx="2"/>
+          <text x="248" y="593" text-anchor="middle"
+                font-family="Space Grotesk, sans-serif" font-size="11" font-weight="700"
+                fill="#74c69d">Evaluación de Modelos</text>
+
+          <ellipse cx="200" cy="622" rx="72" ry="18" fill="rgba(26,60,37,0.95)" stroke="#40916c" stroke-width="1.1"/>
+          <text x="200" y="626" text-anchor="middle" fill="#b7e4c7" font-size="10" font-weight="500">UC23 · Calcular mIoU</text>
+
+          <ellipse cx="200" cy="662" rx="72" ry="18" fill="rgba(26,60,37,0.95)" stroke="#40916c" stroke-width="1.1"/>
+          <text x="200" y="666" text-anchor="middle" fill="#b7e4c7" font-size="10" font-weight="500">UC24 · Calcular F1-score</text>
+
+          <ellipse cx="200" cy="702" rx="72" ry="18" fill="rgba(26,60,37,0.95)" stroke="#40916c" stroke-width="1.1"/>
+          <text x="200" y="706" text-anchor="middle" fill="#b7e4c7" font-size="10" font-weight="500">UC25 · Analizar Confusion Matrix</text>
+
+          <!-- connections to evaluation -->
+          <line x1="62" y1="368" x2="126" y2="622" stroke="#52b788" stroke-width="1.1" stroke-dasharray="4,3" opacity="0.4" marker-end="url(#arrow-dashed)"/>
+          <line x1="891" y1="340" x2="280" y2="668" stroke="#52b788" stroke-width="1" stroke-dasharray="4,3" opacity="0.3" marker-end="url(#arrow-dashed)"/>
+
+          <!-- Seg. Semántica → Evaluación -->
+          <line x1="647" y1="538" x2="388" y2="660" stroke="#e2a613" stroke-width="1" stroke-dasharray="4,3" opacity="0.4" marker-end="url(#arrow-dashed)"/>
+
+          <!-- ══════════════════════════════════════════
+               LEGEND ROW (bottom-center)
+          ═══════════════════════════════════════════ -->
+          <g transform="translate(416, 614)">
+            <rect width="268" height="114" rx="10"
+                  fill="rgba(10,26,14,0.9)" stroke="#40916c" stroke-width="1" opacity="0.9"/>
+            <text x="134" y="20" text-anchor="middle" fill="#52b788" font-size="9.5" font-weight="700">Leyenda de Relaciones</text>
+            <!-- solid line -->
+            <line x1="18" y1="40" x2="60" y2="40" stroke="#52b788" stroke-width="1.5"/>
+            <polygon points="58,36 68,40 58,44" fill="#52b788" opacity="0.8"/>
+            <text x="78" y="44" fill="#74c69d" font-size="9">Asociación directa / include</text>
+            <!-- dashed line -->
+            <line x1="18" y1="62" x2="60" y2="62" stroke="#74c69d" stroke-width="1.2" stroke-dasharray="4,3"/>
+            <polygon points="58,58 68,62 58,66" fill="#74c69d" opacity="0.6"/>
+            <text x="78" y="66" fill="#74c69d" font-size="9">Dependencia / extend</text>
+            <!-- amber line -->
+            <line x1="18" y1="84" x2="60" y2="84" stroke="#e2a613" stroke-width="1.2" stroke-dasharray="4,3"/>
+            <polygon points="58,80 68,84 58,88" fill="#e2a613" opacity="0.6"/>
+            <text x="78" y="88" fill="#74c69d" font-size="9">Segmentación semántica</text>
+            <!-- teal line -->
+            <line x1="18" y1="104" x2="60" y2="104" stroke="#38b2ac" stroke-width="1.2"/>
+            <polygon points="58,100 68,104 58,108" fill="#38b2ac" opacity="0.8"/>
+            <text x="78" y="108" fill="#74c69d" font-size="9">Segmentación binaria</text>
+          </g>
+
+        </svg>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- ── DATOS ──────────────────────────────────────── -->
+  <section id="datos">
+    <div class="container">
+      <p class="section-label reveal">Dataset &amp; Etiquetado</p>
+      <h2 class="section-title reveal">Datos de Entrenamiento</h2>
+      <p class="section-desc reveal">
+        Imágenes reales de campo sin edición artificial, etiquetadas con Label Studio, que incluyen
+        falsos positivos para mayor robustez del modelo en condiciones reales.
+      </p>
+
+      <div class="table-wrapper reveal" style="margin-bottom: 40px;">
+        <table>
+          <thead>
+            <tr>
+              <th>Tipo de Anotación</th>
+              <th>Herramienta</th>
+              <th>Descripción</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Clasificación taxonómica</td>
+              <td style="color:var(--text-2);">Label Studio</td>
+              <td style="color:var(--text-2);">Clasificación jerárquica: Familia / Género / Especie</td>
+            </tr>
+            <tr>
+              <td>Segmentación binaria</td>
+              <td style="color:var(--text-2);">Label Studio</td>
+              <td style="color:var(--text-2);">Máscara poligonal (rana vs. fondo)</td>
+            </tr>
+            <tr>
+              <td>Partes del cuerpo</td>
+              <td style="color:var(--text-2);">Label Studio</td>
+              <td style="color:var(--text-2);">Segmentación semántica multi-clase (8 clases)</td>
+            </tr>
+            <tr>
+              <td>Coordenadas GPS</td>
+              <td style="color:var(--text-2);">JSON metadata</td>
+              <td style="color:var(--text-2);">Por imagen · Integración opcional GBIF</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="section-label reveal" style="margin-bottom:16px;">Clases de Segmentación Semántica</h3>
+      <div class="table-wrapper reveal">
+        <table>
+          <thead>
+            <tr>
+              <th>ID Clase</th>
+              <th>Parte Anatómica</th>
+              <th>Notas</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>0</td><td style="color:var(--text-2);">Fondo (background)</td><td style="color:var(--text-2);">Clase más frecuente — desbalance</td></tr>
+            <tr><td>1</td><td style="color:var(--text-2);">Cuerpo / Torso</td><td style="color:var(--text-2);">Área principal de la rana</td></tr>
+            <tr><td>2</td><td style="color:var(--text-2);">Ojos</td><td style="color:var(--text-2);">Clase pequeña — mayor peso en pérdida</td></tr>
+            <tr><td>3</td><td style="color:var(--text-2);">Manos / Dedos anteriores</td><td style="color:var(--text-2);">RandomCrop estratificado para balanceo</td></tr>
+            <tr><td>4</td><td style="color:var(--text-2);">Patas / Dedos posteriores</td><td style="color:var(--text-2);">Pose variable — augmentación intensiva</td></tr>
+            <tr><td>5</td><td style="color:var(--text-2);">Tímpano</td><td style="color:var(--text-2);">Clase rara — requiere oversampling</td></tr>
+            <tr><td>6</td><td style="color:var(--text-2);">Boca</td><td style="color:var(--text-2);">Clase rara — Dice Loss sensible</td></tr>
+            <tr><td>7</td><td style="color:var(--text-2);">Piel (textura general)</td><td style="color:var(--text-2);">Opcional — HueSaturationValue aug</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- ── MÁSCARA BINARIA FLOW ──────────────────────── -->
+  <section id="mascara" style="background: var(--surface-1);">
+    <div class="container">
+      <p class="section-label reveal">Modelo de Segmentación Binaria</p>
+      <h2 class="section-title reveal">Pipeline de Máscara Binaria</h2>
+      <p class="section-desc reveal">
+        Las imágenes PNG con canal Alpha (RGBA) se convierten a máscara binaria uint8.
+        El canal Alpha define la transparencia: <strong style="color:var(--accent)">Alpha &gt; 128 → rana (1)</strong>,
+        <strong style="color:var(--text-muted)">Alpha ≤ 128 → fondo (0)</strong>.
+        La imagen original (con fondo) y su máscara van juntas al modelo U-Net.
+      </p>
+
+      <!-- Flow diagram -->
+      <div class="uc-diagram-container reveal" style="background:var(--surface-0);">
+        <svg viewBox="0 0 900 280" xmlns="http://www.w3.org/2000/svg" font-family="Inter, sans-serif">
+          <rect width="900" height="280" fill="#0a1a0e" rx="18"/>
+          <pattern id="dots2" width="18" height="18" patternUnits="userSpaceOnUse">
+            <circle cx="9" cy="9" r="0.7" fill="#40916c" opacity="0.2"/>
+          </pattern>
+          <rect width="900" height="280" fill="url(#dots2)" rx="18"/>
+
+          <defs>
+            <marker id="arr2" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+              <path d="M0,0 L8,3 L0,6 Z" fill="#52b788"/>
+            </marker>
+          </defs>
+
+          <!-- Step 1: PNG RGBA -->
+          <rect x="30" y="90" width="130" height="100" rx="12"
+                fill="rgba(15,35,24,0.9)" stroke="#52b788" stroke-width="1.4"/>
+          <text x="95" y="115" text-anchor="middle" fill="#52b788" font-size="11" font-weight="700">PNG · RGBA</text>
+          <text x="95" y="133" text-anchor="middle" fill="#95d5b2" font-size="10">R · G · B · Alpha</text>
+          <text x="95" y="150" text-anchor="middle" fill="#74c69d" font-size="9.5">A=0 → transparente</text>
+          <text x="95" y="164" text-anchor="middle" fill="#74c69d" font-size="9.5">A=255 → rana</text>
+          <text x="95" y="180" text-anchor="middle" fill="#40916c" font-size="9" font-style="italic">canal fondo</text>
+
+          <line x1="160" y1="140" x2="210" y2="140" stroke="#52b788" stroke-width="1.5" marker-end="url(#arr2)"/>
+
+          <!-- Step 2: Conversión umbral -->
+          <rect x="215" y="90" width="150" height="100" rx="12"
+                fill="rgba(15,35,24,0.9)" stroke="#38b2ac" stroke-width="1.4"/>
+          <text x="290" y="112" text-anchor="middle" fill="#38b2ac" font-size="11" font-weight="700">Conversión</text>
+          <text x="290" y="130" text-anchor="middle" fill="#74c69d" font-size="10">Umbral Alfa = 128</text>
+          <text x="290" y="150" text-anchor="middle" fill="#95d5b2" font-size="10.5" font-weight="600">mask[i,j] =</text>
+          <text x="290" y="166" text-anchor="middle" fill="#52b788" font-size="10">1 si Alpha &gt; 128</text>
+          <text x="290" y="180" text-anchor="middle" fill="#40916c" font-size="10">0 si Alpha ≤ 128</text>
+
+          <line x1="365" y1="140" x2="415" y2="140" stroke="#52b788" stroke-width="1.5" marker-end="url(#arr2)"/>
+
+          <!-- Step 3: Mask binaria -->
+          <rect x="420" y="90" width="140" height="100" rx="12"
+                fill="rgba(15,35,24,0.9)" stroke="#52b788" stroke-width="1.4"/>
+          <text x="490" y="112" text-anchor="middle" fill="#52b788" font-size="11" font-weight="700">Máscara uint8</text>
+          <text x="490" y="130" text-anchor="middle" fill="#74c69d" font-size="10">Binaria (0, 1)</text>
+          <!-- mini grid showing 0s and 1s -->
+          <text x="450" y="152" fill="#40916c" font-size="9" font-family="JetBrains Mono, monospace">0 0 0 1 1 1 1</text>
+          <text x="450" y="165" fill="#40916c" font-size="9" font-family="JetBrains Mono, monospace">0 0 1 1 1 1 1</text>
+          <text x="450" y="178" fill="#52b788" font-size="9" font-family="JetBrains Mono, monospace">0 1 1 1 1 0 0</text>
+
+          <!-- Arrow split (Img + Mask → Augmentation) -->
+          <line x1="560" y1="100" x2="600" y2="80" stroke="#74c69d" stroke-width="1.3" marker-end="url(#arr2)"/>
+          <line x1="560" y1="180" x2="600" y2="200" stroke="#74c69d" stroke-width="1.3" marker-end="url(#arr2)"/>
+
+          <!-- Input Img box -->
+          <rect x="605" y="52" width="120" height="36" rx="8"
+                fill="rgba(26,60,37,0.9)" stroke="#40916c" stroke-width="1"/>
+          <text x="665" y="74" text-anchor="middle" fill="#95d5b2" font-size="10" font-weight="600">Img (fondo + rana)</text>
+
+          <!-- Mask box -->
+          <rect x="605" y="192" width="120" height="36" rx="8"
+                fill="rgba(26,60,37,0.9)" stroke="#40916c" stroke-width="1"/>
+          <text x="665" y="214" text-anchor="middle" fill="#95d5b2" font-size="10" font-weight="600">Mask binaria</text>
+
+          <!-- Arrow → Augmentation simultánea -->
+          <line x1="725" y1="70" x2="760" y2="100" stroke="#e2a613" stroke-width="1.4" marker-end="url(#arr2)"/>
+          <line x1="725" y1="210" x2="760" y2="180" stroke="#e2a613" stroke-width="1.4" marker-end="url(#arr2)"/>
+          <text x="745" y="145" text-anchor="middle" fill="#e2a613" font-size="9" font-style="italic">Aug. simultánea</text>
+          <text x="745" y="158" text-anchor="middle" fill="#e2a613" font-size="9" font-style="italic">Img + Mask juntos</text>
+
+          <!-- U-Net box -->
+          <rect x="763" y="96" width="110" height="88" rx="12"
+                fill="rgba(15,35,24,0.95)" stroke="#52b788" stroke-width="1.5"/>
+          <text x="818" y="122" text-anchor="middle" fill="#52b788" font-size="12" font-weight="700">U-Net</text>
+          <text x="818" y="140" text-anchor="middle" fill="#74c69d" font-size="9.5">BCE + Dice Loss</text>
+          <text x="818" y="156" text-anchor="middle" fill="#40916c" font-size="9">ResNet-34</text>
+          <text x="818" y="172" text-anchor="middle" fill="#40916c" font-size="9">encoder</text>
+
+          <!-- ⚠ Overfitting warning -->
+          <rect x="30" y="210" width="340" height="50" rx="10"
+                fill="rgba(226,166,19,0.08)" stroke="#e2a613" stroke-width="1"/>
+          <text x="200" y="231" text-anchor="middle" fill="#e2a613" font-size="10" font-weight="700">⚠  Anti-Overfitting: Eliminación de Fondo</text>
+          <text x="200" y="248" text-anchor="middle" fill="#d4a017" font-size="9.5">Nombre original = Mask · imágenes con fondo incluido en train</text>
+        </svg>
+      </div>
+
+      <!-- Dataset Split -->
+      <h3 class="section-label reveal" style="margin: 36px 0 16px;">División del Dataset · Segmentación Binaria</h3>
+      <div class="table-wrapper reveal" style="margin-bottom:0;">
+        <table>
+          <thead>
+            <tr>
+              <th>Etapa</th>
+              <th>Imágenes Originales</th>
+              <th>Con Augmentación</th>
+              <th>Notas</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Train</td>
+              <td style="color:var(--accent); font-weight:600;">550</td>
+              <td style="color:var(--text-1); font-weight:700;">5,100 – 6,000</td>
+              <td style="color:var(--text-2);">Augmentación aplicada solo a train · Oversampling clases raras</td>
+            </tr>
+            <tr>
+              <td>Validación</td>
+              <td style="color:var(--accent);">120</td>
+              <td style="color:var(--text-muted);">N/A</td>
+              <td style="color:var(--text-2);">Sin augmentación — evaluación limpia</td>
+            </tr>
+            <tr>
+              <td>Test</td>
+              <td style="color:var(--accent);">120</td>
+              <td style="color:var(--text-muted);">N/A</td>
+              <td style="color:var(--text-2);">Nunca visto durante entrenamiento — evaluación final</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- ── AUGMENTACIÓN ───────────────────────────────── -->
+  <section id="augmentacion">
+    <div class="container">
+      <p class="section-label reveal">Albumentations · Pipeline</p>
+      <h2 class="section-title reveal">Pipeline de Augmentación</h2>
+      <p class="section-desc reveal">
+        Con ~1,100 imágenes reales la augmentación <strong style="color:var(--accent)">no es opcional</strong>: es el factor
+        que determina si los modelos generalizan o fallan. Todas las transformaciones geométricas se aplican
+        <strong style="color:var(--accent)">simultáneamente a la imagen y su máscara</strong> para mantener
+        correspondencia pixel-exacta y evitar overfitting.
+      </p>
+
+      <!-- Overfitting warning banner -->
+      <div class="reveal" style="background:rgba(226,166,19,0.08); border:1px solid #e2a613; border-radius:12px; padding:20px 24px; margin-bottom:40px; display:flex; gap:16px; align-items:flex-start;">
+        <span style="font-size:24px; flex-shrink:0;">⚠️</span>
+        <div>
+          <p style="font-weight:700; color:#e2a613; margin-bottom:6px; font-size:1rem;">Eliminación de Fondo — Clave Anti-Overfitting</p>
+          <p style="color:var(--text-2); font-size:0.88rem; line-height:1.65;">
+            El modelo de segmentación binaria aprende a <strong style="color:var(--text-1);">ignorar el fondo</strong> en lugar de memorizarlo.
+            Las imágenes originales incluyen el fondo real de campo — el nombre de la imagen original debe coincidir
+            con el de su máscara. CutMix entre imágenes de ranas y fondos genera ejemplos difíciles (falsos positivos).
+            El CoarseDropout simula oclusiones parciales del cuerpo para evitar que el modelo dependa de la rana completa.
+          </p>
+        </div>
+      </div>
+
+      <!-- GEOMETRIC AUGMENTATIONS TABLE -->
+      <h3 class="section-label reveal" style="margin-bottom:16px;">Augmentaciones Geométricas</h3>
+      <div class="table-wrapper reveal" style="margin-bottom:32px;">
+        <table>
+          <thead>
+            <tr>
+              <th>Transformación</th>
+              <th>Parámetros</th>
+              <th>Probabilidad</th>
+              <th>Propósito</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>HorizontalFlip</td>
+              <td style="color:var(--text-2); font-family:'JetBrains Mono',monospace; font-size:0.82rem;">—</td>
+              <td style="color:var(--accent); font-weight:700;">p = 0.5</td>
+              <td style="color:var(--text-2);">Espejado horizontal</td>
+            </tr>
+            <tr>
+              <td>VerticalFlip</td>
+              <td style="color:var(--text-2); font-family:'JetBrains Mono',monospace; font-size:0.82rem;">—</td>
+              <td style="color:var(--accent); font-weight:700;">p = 0.3</td>
+              <td style="color:var(--text-2);">Poses invertidas poco frecuentes</td>
+            </tr>
+            <tr>
+              <td>RandomRotate90</td>
+              <td style="color:var(--text-2); font-family:'JetBrains Mono',monospace; font-size:0.82rem;">rotación 90°</td>
+              <td style="color:var(--accent); font-weight:700;">p = 0.5</td>
+              <td style="color:var(--text-2);">Rotaciones ortogonales</td>
+            </tr>
+            <tr>
+              <td>ShiftScaleRotate</td>
+              <td style="color:var(--text-2); font-family:'JetBrains Mono',monospace; font-size:0.82rem;">limit=0.2, R_lim=0.3</td>
+              <td style="color:var(--accent); font-weight:700;">p = 0.5</td>
+              <td style="color:var(--text-2);">Variabilidad de pose y escala (zoom ±)</td>
+            </tr>
+            <tr>
+              <td>ElasticTransform</td>
+              <td style="color:var(--text-2); font-family:'JetBrains Mono',monospace; font-size:0.82rem;">alpha=120, sigma=6</td>
+              <td style="color:var(--accent); font-weight:700;">p = 0.3</td>
+              <td style="color:var(--text-2);">Deformación orgánica — simula poses naturales</td>
+            </tr>
+            <tr>
+              <td>GridDistortion</td>
+              <td style="color:var(--text-2); font-family:'JetBrains Mono',monospace; font-size:0.82rem;">—</td>
+              <td style="color:var(--accent); font-weight:700;">p = 0.2</td>
+              <td style="color:var(--text-2);">Deformación de cuadrícula</td>
+            </tr>
+            <tr>
+              <td>Perspective</td>
+              <td style="color:var(--text-2); font-family:'JetBrains Mono',monospace; font-size:0.82rem;">—</td>
+              <td style="color:var(--accent); font-weight:700;">p = 0.3</td>
+              <td style="color:var(--text-2);">Cambio de perspectiva de cámara</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- COLOR/TEXTURE AUGMENTATIONS TABLE -->
+      <h3 class="section-label reveal" style="margin-bottom:16px;">Augmentaciones de Color y Textura</h3>
+      <div class="table-wrapper reveal" style="margin-bottom:32px;">
+        <table>
+          <thead>
+            <tr>
+              <th>Transformación</th>
+              <th>Parámetros</th>
+              <th>Probabilidad</th>
+              <th>Propósito</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>RandomBrightnessContrast</td>
+              <td style="color:var(--text-2); font-family:'JetBrains Mono',monospace; font-size:0.82rem;">brightness=0.3, contrast=0.3</td>
+              <td style="color:var(--accent); font-weight:700;">p = 0.5</td>
+              <td style="color:var(--text-2);">Variación de iluminación de campo</td>
+            </tr>
+            <tr>
+              <td>RandomShadow</td>
+              <td style="color:var(--text-2); font-family:'JetBrains Mono',monospace; font-size:0.82rem;">—</td>
+              <td style="color:var(--accent); font-weight:700;">p = 0.2</td>
+              <td style="color:var(--text-2);">Sombras artificiales para robustez</td>
+            </tr>
+            <tr>
+              <td>HueSaturationValue</td>
+              <td style="color:var(--text-2); font-family:'JetBrains Mono',monospace; font-size:0.82rem;">hue=10, sat=20, val=20</td>
+              <td style="color:var(--accent); font-weight:700;">p = 0.3</td>
+              <td style="color:var(--text-2);">Colores variables entre individuos · limitación de hue</td>
+            </tr>
+            <tr>
+              <td>RGBShift</td>
+              <td style="color:var(--text-2); font-family:'JetBrains Mono',monospace; font-size:0.82rem;">r=15, g=15, b=15</td>
+              <td style="color:var(--text-muted);">p = 0.3</td>
+              <td style="color:var(--text-2);">Variación de temperatura de color</td>
+            </tr>
+            <tr>
+              <td>CLAHE</td>
+              <td style="color:var(--text-2); font-family:'JetBrains Mono',monospace; font-size:0.82rem;">clip=4.0</td>
+              <td style="color:var(--text-muted);">p = 0.3</td>
+              <td style="color:var(--text-2);">Mejora contraste local — fondos complejos</td>
+            </tr>
+            <tr>
+              <td>GaussianBlur</td>
+              <td style="color:var(--text-2); font-family:'JetBrains Mono',monospace; font-size:0.82rem;">blur_limit=3</td>
+              <td style="color:var(--text-muted);">p = 0.2</td>
+              <td style="color:var(--text-2);">Simula desenfoque de cámara</td>
+            </tr>
+            <tr>
+              <td>GaussNoise</td>
+              <td style="color:var(--text-2); font-family:'JetBrains Mono',monospace; font-size:0.82rem;">var_limit=(10,50)</td>
+              <td style="color:var(--text-muted);">p = 0.2</td>
+              <td style="color:var(--text-2);">Ruido de sensor de cámara de campo</td>
+            </tr>
+            <tr>
+              <td>ImageCompression</td>
+              <td style="color:var(--text-2); font-family:'JetBrains Mono',monospace; font-size:0.82rem;">quality=60-100</td>
+              <td style="color:var(--text-muted);">p = 0.3</td>
+              <td style="color:var(--text-2);">Simula compresión JPEG de campo</td>
+            </tr>
+            <tr>
+              <td>CoarseDropout</td>
+              <td style="color:var(--text-2); font-family:'JetBrains Mono',monospace; font-size:0.82rem;">holes=8, size=32</td>
+              <td style="color:var(--text-muted);">p = 0.3</td>
+              <td style="color:var(--text-2);">Simula oclusión parcial — anti-overfitting cuerpo completo</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Valores sugeridos compact table -->
+      <h3 class="section-label reveal" style="margin-bottom:16px;">Resumen de Valores por Categoría</h3>
+      <div class="table-wrapper reveal" style="margin-bottom:0;">
+        <table>
+          <thead>
+            <tr>
+              <th>Categoría</th>
+              <th>Transformación</th>
+              <th>Parámetros</th>
+              <th>Probabilidad</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>Geometría</td><td style="color:var(--text-2);">Flip Horizontal</td><td style="color:var(--text-muted);">—</td><td style="color:var(--accent); font-weight:700;">0.5</td></tr>
+            <tr><td>Geometría</td><td style="color:var(--text-2);">Flip Vertical</td><td style="color:var(--text-muted);">—</td><td style="color:var(--accent); font-weight:700;">0.3</td></tr>
+            <tr><td>Geometría</td><td style="color:var(--text-2);">Rotación 90°</td><td style="color:var(--text-muted);">rotación 90°</td><td style="color:var(--accent); font-weight:700;">0.5</td></tr>
+            <tr><td>Geometría</td><td style="color:var(--text-2);">ScaleRotate</td><td style="color:var(--text-muted);">limit=0.2, R_lim=0.3</td><td style="color:var(--accent); font-weight:700;">0.5</td></tr>
+            <tr><td>Iluminación</td><td style="color:var(--text-2);">Contraste</td><td style="color:var(--text-muted);">brightness/contrast lim=0.3</td><td style="color:var(--accent); font-weight:700;">0.5</td></tr>
+            <tr><td>Iluminación</td><td style="color:var(--text-2);">RandomShadow</td><td style="color:var(--text-muted);">—</td><td style="color:var(--accent); font-weight:700;">0.2</td></tr>
+            <tr><td>Iluminación</td><td style="color:var(--text-2);">HueSaturation</td><td style="color:var(--text-muted);">hue=10, sat=20, val=20</td><td style="color:var(--accent); font-weight:700;">0.3</td></tr>
+            <tr><td>Calidad</td><td style="color:var(--text-2);">GaussianBlur</td><td style="color:var(--text-muted);">blur_limit=3</td><td style="color:var(--accent); font-weight:700;">0.2</td></tr>
+            <tr><td>Calidad</td><td style="color:var(--text-2);">GaussNoise</td><td style="color:var(--text-muted);">—</td><td style="color:var(--accent); font-weight:700;">0.2</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- ── EVALUACIÓN ─────────────────────────────────── -->
+  <section id="evaluacion" style="background: var(--surface-1);">
+    <div class="container">
+      <p class="section-label reveal">Métricas</p>
+      <h2 class="section-title reveal">Evaluación por Módulo</h2>
+      <p class="section-desc reveal">
+        Cada modelo se evalúa y entrena de forma independiente. El test set nunca es visto durante el entrenamiento.
+        Se reportan métricas por clase para detectar fallos en clases clave.
+      </p>
+
+      <div class="table-wrapper reveal">
+        <table>
+          <thead>
+            <tr>
+              <th>Módulo</th>
+              <th>Métrica Principal</th>
+              <th>Métrica Secundaria</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Clasificación especie</td>
+              <td style="color:var(--text-2);">F1-score macro</td>
+              <td style="color:var(--text-2);">Top-3 Accuracy</td>
+            </tr>
+            <tr>
+              <td>Clasificación género</td>
+              <td style="color:var(--text-2);">F1-score macro</td>
+              <td style="color:var(--text-2);">Confusion Matrix</td>
+            </tr>
+            <tr>
+              <td>Clasificación familia</td>
+              <td style="color:var(--text-2);">F1-score macro</td>
+              <td style="color:var(--text-2);">Precision / Recall</td>
+            </tr>
+            <tr>
+              <td>Segmentación binaria</td>
+              <td style="color:var(--text-2);">IoU (Jaccard)</td>
+              <td style="color:var(--text-2);">Dice Score</td>
+            </tr>
+            <tr>
+              <td>Segmentación semántica</td>
+              <td style="color:var(--text-2);">Mean IoU (mIoU)</td>
+              <td style="color:var(--text-2);">IoU por clase</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- ── ESTRUCTURA ─────────────────────────────────── -->
+  <section id="estructura">
+    <div class="container">
+      <p class="section-label reveal">Organización del Código</p>
+      <h2 class="section-title reveal">Estructura del Proyecto</h2>
+      <p class="section-desc reveal">
+        Arquitectura modular con separación clara de responsabilidades. Los archivos de máscara mantienen el
+        <strong style="color:var(--accent)">mismo nombre</strong> que la imagen original.
+        Los datos crudos y etiquetados están organizados jerárquicamente por <strong style="color:var(--accent)">Familia → Género → Especie</strong>.
+      </p>
+
+      <!-- ── Google Drive Links ── -->
+      <div class="reveal" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(260px,1fr)); gap:14px; margin-bottom:44px;">
+
+        <a href="https://drive.google.com/drive/folders/1P_sETg5Vwtyozraj6h4z0UeI6NZoWA6z?usp=drive_link"
+           target="_blank" rel="noopener"
+           style="text-decoration:none;">
+          <div class="card" style="border-left:3px solid var(--accent); cursor:pointer; display:flex; gap:14px; align-items:flex-start;">
+            <span style="font-size:26px; flex-shrink:0;">📸</span>
+            <div>
+              <div style="font-weight:700; color:var(--text-1); font-size:0.9rem; margin-bottom:4px;">Fotos · Dataset Principal</div>
+              <div style="font-size:0.78rem; color:var(--text-muted);">~1,100 imágenes reales de campo · JPEG/PNG con fondo</div>
+              <div style="margin-top:8px; font-size:0.72rem; color:var(--accent); font-family:'JetBrains Mono',monospace;">Google Drive →</div>
+            </div>
+          </div>
+        </a>
+
+        <a href="https://drive.google.com/drive/folders/1PUFhC_kPb69xulHiPPH__2YXc4A88NSq?usp=drive_link"
+           target="_blank" rel="noopener"
+           style="text-decoration:none;">
+          <div class="card" style="border-left:3px solid #38b2ac; cursor:pointer; display:flex; gap:14px; align-items:flex-start;">
+            <span style="font-size:26px; flex-shrink:0;">🗂️</span>
+            <div>
+              <div style="font-weight:700; color:var(--text-1); font-size:0.9rem; margin-bottom:4px;">Datos Crudos · Para Etiquetar</div>
+              <div style="font-size:0.78rem; color:var(--text-muted);">Imágenes sin fondo organizadas por Familia / Género / Especie</div>
+              <div style="margin-top:8px; font-size:0.72rem; color:#38b2ac; font-family:'JetBrains Mono',monospace;">Google Drive →</div>
+            </div>
+          </div>
+        </a>
+
+        <a href="https://drive.google.com/drive/folders/1tdM_key0y5Wc3B0OLEU_lC_PoIz2NEO1?usp=drive_link"
+           target="_blank" rel="noopener"
+           style="text-decoration:none;">
+          <div class="card" style="border-left:3px solid #e2a613; cursor:pointer; display:flex; gap:14px; align-items:flex-start;">
+            <span style="font-size:26px; flex-shrink:0;">🎭</span>
+            <div>
+              <div style="font-weight:700; color:var(--text-1); font-size:0.9rem; margin-bottom:4px;">Máscaras · Original + Recorte</div>
+              <div style="font-size:0.78rem; color:var(--text-muted);">Pares Original / Mask de recorte · mismos nombres de archivo</div>
+              <div style="margin-top:8px; font-size:0.72rem; color:#e2a613; font-family:'JetBrains Mono',monospace;">Google Drive →</div>
+            </div>
+          </div>
+        </a>
+
+      </div>
+
+      <!-- ── Interactive Collapsible Tree ── -->
+      <div class="reveal" id="anura-tree-wrapper" style="
+        background: var(--surface-1);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        padding: 24px 28px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 13px;
+        overflow-x: auto;
+      ">
+        <!-- Root -->
+        <div style="display:flex; align-items:center; gap:10px; padding-bottom:14px; border-bottom: 1px solid var(--border-light); margin-bottom:10px;">
+          <span style="font-size:18px;">📁</span>
+          <span style="font-size:15px; font-weight:600; color:var(--text-1);">proyecto_ranas/</span>
+        </div>
+        <div id="anura-tree-sections"></div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ── TREE STYLES + SCRIPT ── -->
+  <style>
+    .ts-header {
+      display: flex; align-items: center; gap: 8px;
+      padding: 7px 12px; margin: 3px 0; border-radius: 8px;
+      background: var(--surface-2);
+      border: 1px solid var(--border-light);
+      cursor: pointer; user-select: none;
+      transition: background 0.18s, border-color 0.18s;
+    }
+    .ts-header:hover { background: var(--surface-3); border-color: var(--border); }
+    .ts-chev { font-size: 9px; color: var(--text-muted); transition: transform 0.2s; flex-shrink:0; }
+    .ts-chev.open { transform: rotate(90deg); }
+    .ts-children {
+      padding-left: 18px;
+      border-left: 1.5px solid rgba(82,183,136,0.15);
+      margin-left: 14px;
+      overflow: hidden;
+    }
+    .ts-children.collapsed { display: none; }
+    .ts-fname { font-weight: 600; flex-shrink: 0; }
+    .ts-note { font-size: 11px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ts-badge {
+      font-size: 10px; font-weight: 600; padding: 1px 8px;
+      border-radius: 20px; flex-shrink: 0; white-space: nowrap;
+    }
+    .ts-row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 5px 10px; border-radius: 6px; line-height: 1.8;
+    }
+    .ts-row:hover { background: var(--surface-2); }
+    .ts-row .ts-fname { color: var(--text-2); font-weight: 400; }
+    .ts-sep { color: var(--text-muted); flex-shrink:0; }
+    /* Badge colors dark-mode */
+    .b-data    { background:rgba(15,110,86,0.2);  color:#5DCAA5; border:1px solid rgba(93,202,165,0.3); }
+    .b-models  { background:rgba(60,52,137,0.2);  color:#AFA9EC; border:1px solid rgba(175,169,236,0.3); }
+    .b-training{ background:rgba(99,56,6,0.25);   color:#EF9F27; border:1px solid rgba(239,159,39,0.3); }
+    .b-aug     { background:rgba(99,56,6,0.25);   color:#EF9F27; border:1px solid rgba(239,159,39,0.3); }
+    .b-inf     { background:rgba(113,43,19,0.25); color:#F0997B; border:1px solid rgba(240,153,123,0.3); }
+    .b-api     { background:rgba(121,31,31,0.25); color:#F09595; border:1px solid rgba(240,149,149,0.3); }
+    .b-eval    { background:rgba(39,80,10,0.25);  color:#97C459; border:1px solid rgba(151,196,89,0.3); }
+    .b-raw     { background:rgba(56,178,172,0.15);color:#38b2ac; border:1px solid rgba(56,178,172,0.3); }
+    .b-link    { background:rgba(82,183,136,0.12);color:#52b788; border:1px solid rgba(82,183,136,0.3); }
+  </style>
+
+  <script>
+  (function() {
+    // ── Species hierarchy for datos_crudos & datos_sin_fondo
+    const speciesTree = [
+      {
+        label: 'Dendrobatidae/', icon:'📁', children:[
+          { label:'Dendrobates/', children:[{label:'Dendrobates_truncatus/', icon:'🐸'}]},
+          { label:'Leucostethus/', children:[{label:'Leucostethus_fraterdanieli/', icon:'🐸'}]},
+        ]
+      },
+      {
+        label: 'Hylidae/', icon:'📁', children:[
+          { label:'Dendropsophus/', children:[
+            {label:'Dendropsophus_bogerti/', icon:'🐸'},
+            {label:'Dendropsophus_microcephalus/', icon:'🐸'},
+          ]},
+          { label:'Hyloscirtus/', children:[{label:'Hyloscirtus_palmatus/', icon:'🐸'}]},
+        ]
+      },
+      {
+        label: 'Strabomantidae/', icon:'📁', children:[
+          { label:'Pristimantis/', children:[
+            {label:'Pristimantis_acanthinus/', icon:'🐸'},
+            {label:'Pristimantis_norandinus/', icon:'🐸'},
+            {label:'Pristimantis_paisa/', icon:'🐸'},
+            {label:'Pristimantis_penelopus/', icon:'🐸'},
+          ]},
+        ]
+      },
+      {
+        label: 'Bufonidae/', icon:'📁', children:[
+          { label:'Rhinella/', children:[
+            {label:'Rhinella_alata/', icon:'🐸'},
+            {label:'Rhinella_horribilis/', icon:'🐸'},
+          ]},
+        ]
+      },
+    ];
+
+    const sections = [
+      {
+        name:'data/', badge:'b-data', badgeLabel:'datos',
+        note:'~1,100 imágenes · masks · metadata GPS',
+        driveUrl:'https://drive.google.com/drive/folders/1P_sETg5Vwtyozraj6h4z0UeI6NZoWA6z?usp=drive_link',
+        children:[
+          {
+            type:'section', name:'datos_crudos/', badge:'b-raw', badgeLabel:'raw',
+            note:'Con fondo · dividido por Familia/Género/Especie',
+            driveUrl:'https://drive.google.com/drive/folders/1PUFhC_kPb69xulHiPPH__2YXc4A88NSq?usp=drive_link',
+            children: buildSpeciesRows(speciesTree, '📷')
+          },
+          {
+            type:'section', name:'datos_sin_fondo/', badge:'b-raw', badgeLabel:'sin fondo',
+            note:'PNG transparente · para etiquetar en Label Studio',
+            driveUrl:'https://drive.google.com/drive/folders/1PUFhC_kPb69xulHiPPH__2YXc4A88NSq?usp=drive_link',
+            children: buildSpeciesRows(speciesTree, '🖼️')
+          },
+          {
+            type:'section', name:'mascaras/', badge:'b-data', badgeLabel:'masks',
+            note:'Pares Original + Mask de recorte · mismo nombre de archivo',
+            driveUrl:'https://drive.google.com/drive/folders/1tdM_key0y5Wc3B0OLEU_lC_PoIz2NEO1?usp=drive_link',
+            children: buildSpeciesRows(speciesTree, '🎭')
+          },
+          { type:'folder', name:'masks_binary/',   note:'PNG canal único (0 fondo, 1 rana)' },
+          { type:'folder', name:'masks_semantic/', note:'8 clases anatómicas' },
+          { type:'folder', name:'metadata/',       note:'JSON GPS + especie · Label Studio export' },
+        ]
+      },
+      {
+        name:'models/', badge:'b-models', badgeLabel:'modelos',
+        note:'BioCLIP · U-Net ResNet-34 · SegFormer mit-b2',
+        children:[
+          { type:'folder', name:'classifier/',      note:'Modelo 1 · BioCLIP multi-tarea fine-tuned' },
+          { type:'folder', name:'unet_binary/',     note:'Modelo 2 · U-Net + ResNet-34' },
+          { type:'folder', name:'segformer_parts/', note:'Modelo 3 · SegFormer mit-b2 ADE20K' },
+        ]
+      },
+      {
+        name:'training/', badge:'b-training', badgeLabel:'entrenamiento',
+        note:'Scripts de entrenamiento por modelo',
+        children:[
+          { type:'file', name:'train_classifier.py', note:'LLRD · label smoothing · AdamW' },
+          { type:'file', name:'train_unet.py',        note:'BCE + Dice · WeightedSampler' },
+          { type:'file', name:'train_segformer.py',   note:'CrossEntropy ponderada + Dice' },
+        ]
+      },
+      {
+        name:'augmentation/', badge:'b-aug', badgeLabel:'augmentación',
+        note:'Geometric + Color + CutMix · Aug simultánea Img+Mask',
+        children:[
+          { type:'file', name:'pipelines.py', note:'Albumentations · CutMix · MixUp · Anti-overfitting' },
+        ]
+      },
+      {
+        name:'inference/', badge:'b-inf', badgeLabel:'inferencia',
+        note:'Pipeline completo M1 → M2 → M3',
+        children:[
+          { type:'file', name:'pipeline.py', note:'Pipeline completo (M1 → M2 → M3) · entrada JSON salida' },
+        ]
+      },
+      {
+        name:'api/', badge:'b-api', badgeLabel:'api',
+        note:'FastAPI /predict → JSON resultado',
+        children:[
+          { type:'file', name:'main.py', note:'FastAPI /predict → especie + máscara + partes + coords' },
+        ]
+      },
+      {
+        name:'evaluation/', badge:'b-eval', badgeLabel:'evaluación',
+        note:'mIoU · F1-macro · Dice · IoU/clase',
+        children:[
+          { type:'file', name:'metrics.py', note:'mIoU · F1-macro · Dice Score · IoU por clase · Confusion Matrix' },
+        ]
+      },
+    ];
+
+    function buildSpeciesRows(tree, icon) {
+      const rows = [];
+      tree.forEach(family => {
+        rows.push({ type:'folder', name: family.label, note:'familia', _icon: '📂' });
+        (family.children || []).forEach(genus => {
+          rows.push({ type:'folder', name:'  '+genus.label, note:'género', _icon:'📁', _indent:1 });
+          (genus.children || []).forEach(sp => {
+            rows.push({ type:'folder', name:'    '+sp.label, note:'especie', _icon: icon, _indent:2 });
+          });
+        });
+      });
+      return rows;
+    }
+
+    let sCount = 0;
+
+    function makeDriveLink(url) {
+      if (!url) return '';
+      return `<a href="${url}" target="_blank" rel="noopener"
+                style="font-size:10px; color:var(--accent); text-decoration:none; border:1px solid var(--border); padding:1px 7px; border-radius:4px; margin-left:6px; flex-shrink:0;"
+                onclick="event.stopPropagation()">↗ Drive</a>`;
+    }
+
+    function buildRows(children, container) {
+      children.forEach(c => {
+        if (c.type === 'section') {
+          // Nested collapsible sub-section
+          const id = 'ts' + (sCount++);
+          const wrap = document.createElement('div');
+          wrap.style.marginTop = '4px';
+
+          const hdr = document.createElement('div');
+          hdr.className = 'ts-header';
+          hdr.innerHTML = `
+            <span class="ts-chev open" id="chev-${id}">▶</span>
+            <span id="ico-${id}" style="font-size:12px;">📂</span>
+            <span class="ts-fname" style="color:var(--text-2);">${c.name}</span>
+            <span class="ts-badge ${c.badge}">${c.badgeLabel}</span>
+            <span class="ts-note">— ${c.note}</span>
+            ${makeDriveLink(c.driveUrl)}
+          `;
+
+          const kids = document.createElement('div');
+          kids.className = 'ts-children';
+          kids.id = id;
+          buildRows(c.children, kids);
+
+          let open = true;
+          hdr.addEventListener('click', () => {
+            open = !open;
+            document.getElementById('chev-' + id).classList.toggle('open', open);
+            document.getElementById('ico-' + id).textContent = open ? '📂' : '📁';
+            kids.classList.toggle('collapsed', !open);
+          });
+
+          wrap.appendChild(hdr);
+          wrap.appendChild(kids);
+          container.appendChild(wrap);
+        } else {
+          const row = document.createElement('div');
+          row.className = 'ts-row';
+          const isF = c.type === 'folder';
+          const ico = c._icon || (isF ? '📂' : '📄');
+          row.innerHTML = `
+            <span style="font-size:11px; flex-shrink:0;">${ico}</span>
+            <span class="ts-fname">${c.name}</span>
+            <span class="ts-sep">—</span>
+            <span class="ts-note">${c.note}</span>
+          `;
+          container.appendChild(row);
+        }
+      });
+    }
+
+    function buildSection(s, idx) {
+      const id = 'ts' + (sCount++);
+      const div = document.createElement('div');
+      div.style.marginBottom = '4px';
+
+      const hdr = document.createElement('div');
+      hdr.className = 'ts-header';
+      hdr.innerHTML = `
+        <span class="ts-chev open" id="chev-${id}">▶</span>
+        <span id="ico-${id}" style="font-size:14px;">📂</span>
+        <span class="ts-fname" style="color:var(--text-1); font-size:13px;">${s.name}</span>
+        <span class="ts-badge ${s.badge}">${s.badgeLabel}</span>
+        <span class="ts-note">— ${s.note}</span>
+        ${makeDriveLink(s.driveUrl)}
+      `;
+
+      const kids = document.createElement('div');
+      kids.className = 'ts-children';
+      kids.id = id;
+      buildRows(s.children, kids);
+
+      let open = true;
+      hdr.addEventListener('click', () => {
+        open = !open;
+        document.getElementById('chev-' + id).classList.toggle('open', open);
+        document.getElementById('ico-' + id).textContent = open ? '📂' : '📁';
+        kids.classList.toggle('collapsed', !open);
+      });
+
+      div.appendChild(hdr);
+      div.appendChild(kids);
+      return div;
+    }
+
+    const container = document.getElementById('anura-tree-sections');
+    sections.forEach((s, i) => container.appendChild(buildSection(s, i)));
+  })();
+  </script>
+
+  <div class="divider"></div>
+
+
+
+
+  <!-- ── DECISIONES ─────────────────────────────────── -->
+  <section style="background: var(--surface-1);">
+    <div class="container">
+      <p class="section-label reveal">Diseño del Sistema</p>
+      <h2 class="section-title reveal">Decisiones Clave del Proyecto</h2>
+      <p class="section-desc reveal">Cada decisión de diseño está fundamentada en las características del dataset y los objetivos de investigación.</p>
+      <div class="decisions-grid">
+        <div class="decision-item reveal">
+          <div class="decision-check">✓</div>
+          <div class="decision-text">
+            <h4>Sin edición artificial</h4>
+            <p>Los datos reales de campo son la ventaja diferencial del proyecto.</p>
+          </div>
+        </div>
+        <div class="decision-item reveal">
+          <div class="decision-check">✓</div>
+          <div class="decision-text">
+            <h4>Falsos positivos en training</h4>
+            <p>Robustez ante fondos confusos y objetos similares a ranas.</p>
+          </div>
+        </div>
+        <div class="decision-item reveal">
+          <div class="decision-check">✓</div>
+          <div class="decision-text">
+            <h4>Pipeline modular (3 modelos)</h4>
+            <p>Cada tarea tiene su complejidad propia e independiente.</p>
+          </div>
+        </div>
+        <div class="decision-item reveal">
+          <div class="decision-check">✓</div>
+          <div class="decision-text">
+            <h4>Fine-tuning con backbone pre-entrenado</h4>
+            <p>Dataset pequeño: transfer learning es esencial para generalizar.</p>
+          </div>
+        </div>
+        <div class="decision-item reveal">
+          <div class="decision-check">✓</div>
+          <div class="decision-text">
+            <h4>Taxonomía jerárquica</h4>
+            <p>Familia → Género → Especie: coherencia biológica en predicciones.</p>
+          </div>
+        </div>
+        <div class="decision-item reveal">
+          <div class="decision-check">✓</div>
+          <div class="decision-text">
+            <h4>Segmentación semántica (no bounding boxes)</h4>
+            <p>Precisión anatómica a nivel de píxel para investigación científica.</p>
+          </div>
+        </div>
+        <div class="decision-item reveal">
+          <div class="decision-check">✓</div>
+          <div class="decision-text">
+            <h4>Dataset propio etiquetado</h4>
+            <p>Ventaja competitiva y control de calidad total sobre los datos.</p>
+          </div>
+        </div>
+        <div class="decision-item reveal">
+          <div class="decision-check">✓</div>
+          <div class="decision-text">
+            <h4>Evaluación honesta test set</h4>
+            <p>Reportar IoU por clase evita que el promedio oculte fallos clave.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── FOOTER ─────────────────────────────────────── -->
+  <footer>
+    <div class="footer-logo">🐸 Anura <span>AI</span></div>
+    <p>Desarrollado para la investigación científica y conservación de la biodiversidad de anfibios.</p>
+    <div class="footer-links">
+      <a href="https://github.com/Mogollo7/Sapito.git" target="_blank">GitHub</a>
+      <a href="#pipeline">Pipeline</a>
+      <a href="#use-case">Casos de Uso</a>
+      <a href="#datos">Dataset</a>
+      <a href="#evaluacion">Evaluación</a>
+    </div>
+    <p class="footer-copy">© 2025 Anura AI Team — Todos los derechos reservados.</p>
+  </footer>
+
+  <!-- ── SCROLL REVEAL JS ───────────────────────────── -->
+  <script>
+    // Intersection Observer for scroll reveals
+    const revealObserver = new IntersectionObserver((entries) => {
+      entries.forEach((entry, i) => {
+        if (entry.isIntersecting) {
+          setTimeout(() => {
+            entry.target.classList.add('visible');
+          }, 80);
+          revealObserver.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
+    document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el));
+
+    // Stagger children in grids
+    document.querySelectorAll('.cards-grid, .decisions-grid, .pipeline-models, .pipeline-output').forEach(grid => {
+      Array.from(grid.children).forEach((child, i) => {
+        child.style.transitionDelay = `${i * 80}ms`;
+      });
+    });
+
+    // Navbar scroll effect
+    const navbar = document.getElementById('navbar');
+    window.addEventListener('scroll', () => {
+      if (window.scrollY > 60) {
+        navbar.style.background = 'rgba(10,26,14,0.95)';
+      } else {
+        navbar.style.background = 'rgba(10,26,14,0.75)';
+      }
+    }, { passive: true });
+  </script>
+</body>
+</html>
